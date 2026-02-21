@@ -53,6 +53,50 @@
 
 После этого база будет храниться в томе и не пропадёт при обновлениях.
 
+#### Как подложить старый файл quiz_bot.db в Volume (полная инструкция)
+
+В интерфейсе Railway **нельзя загрузить файл в Volume** вручную. Бот при первом запуске сам копирует базу из репозитория в Volume, если по пути `DB_PATH` базы ещё нет.
+
+**Шаг 1. Положить старую базу в репозиторий**
+
+1. Возьмите ваш старый файл `quiz_bot.db` (например, из «Загрузки» или «Telegram Desktop»).
+2. В папке проекта скопируйте его **как** `db_backup/quiz_bot_backup.db` (замените существующий файл):
+   ```bash
+   copy "C:\Users\mamur\Downloads\Telegram Desktop\quiz_bot.db" "db_backup\quiz_bot_backup.db"
+   ```
+   (или перетащите файл в папку `db_backup` и назовите `quiz_bot_backup.db`).
+3. Закоммитьте и запушьте в ветку `main`:
+   ```bash
+   git add db_backup/quiz_bot_backup.db
+   git commit -m "Restore DB backup for Volume"
+   git push origin main
+   ```
+
+**Шаг 2. Настроить Volume в Railway**
+
+Volume настраивается у **сервиса**, а не в Project Settings.
+
+1. В левой панели Railway откройте **проект** (например, earnest-prosperity), затем выберите **сервис** с ботом (например, quiz_on_korea_bot).
+2. Вверху откройте вкладку **Settings** (настройки сервиса, не проекта).
+3. В блоке **Volumes** нажмите **Add Volume**.
+4. В поле **Mount Path** укажите: **`/data`**.
+5. Сохраните (Add / Create).
+
+**Шаг 3. Указать путь к базе в Volume**
+
+1. В том же сервисе откройте вкладку **Variables**.
+2. Добавьте или измените переменную:
+   - Имя: **`DB_PATH`**
+   - Значение: **`/data/quiz_bot.db`**
+
+**Шаг 4. Запустить деплой**
+
+1. Вкладка **Deployments** → кнопка **Redeploy** у последнего деплоя (или дождаться автодеплоя после `git push`).
+2. При **первом** запуске бот увидит, что файла `/data/quiz_bot.db` нет, найдёт в репозитории `db_backup/quiz_bot_backup.db` и скопирует его в `/data/quiz_bot.db`. В логах появится строка: `restored DB from db_backup/quiz_bot_backup.db to /data/quiz_bot.db`.
+3. Дальше бот всегда будет использовать `/data/quiz_bot.db` в томе; данные сохранятся между редеплоями.
+
+**Итог:** старый `quiz_bot.db` лежит в репо как `db_backup/quiz_bot_backup.db`. Volume примонтирован в `/data`. Бот при первом запуске копирует бэкап в `/data/quiz_bot.db` и с этого момента работает с этой базой.
+
 ### 2.5 Резервная копия БД в GitHub (без Volume или дополнительно)
 
 Если не используете Volume или хотите дублировать данные в репозитории, бот может каждые 5 минут делать бэкап `quiz_bot.db` и пушить его в репозиторий (файл `db_backup/quiz_bot_backup.db`).

@@ -212,6 +212,21 @@ def build_ranking_level_keyboard() -> InlineKeyboardMarkup:
 # =======================
 
 
+def _restore_db_from_backup_if_needed():
+    """If DB_PATH does not exist but db_backup/quiz_bot_backup.db exists (e.g. in repo), copy it to DB_PATH (e.g. Volume)."""
+    if Path(DB_PATH).exists():
+        return
+    backup_path = Path(DB_BACKUP_PATH_IN_REPO)
+    if not backup_path.exists():
+        return
+    try:
+        Path(DB_PATH).parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(backup_path, DB_PATH)
+        logging.info("restored DB from %s to %s", backup_path, DB_PATH)
+    except Exception as e:
+        logging.warning("could not restore DB from backup: %s", e)
+
+
 async def init_db():
     async with aiosqlite.connect(DB_PATH) as db:
         await db.execute(
@@ -1737,6 +1752,7 @@ async def fallback_message(message: Message):
 
 async def main():
     logging.basicConfig(level=logging.INFO)
+    _restore_db_from_backup_if_needed()
     await init_db()
 
     if not BOT_TOKEN:
