@@ -887,7 +887,7 @@ def _push_backup_to_github_sync(backup_bytes: bytes) -> bool:
         if result.returncode != 0 and "nothing to commit" not in (result.stdout or "") and "nothing to commit" not in (result.stderr or ""):
             logging.warning("db backup: git commit failed: %s", result.stderr or result.stdout)
         result = subprocess.run(
-            ["git", "push", "origin", "HEAD"],
+            ["git", "push", "origin", "main"],
             cwd=tmpdir,
             capture_output=True,
             text=True,
