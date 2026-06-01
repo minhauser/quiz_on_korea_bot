@@ -29,6 +29,7 @@ class Battle:
     finished_at: Optional[str]
     finish_notified_initiator: int = 0
     finish_notified_opponent: int = 0
+    ai_opponent_display_name: Optional[str] = None
 
 
 @dataclass

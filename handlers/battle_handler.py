@@ -298,12 +298,7 @@ async def _forfeit_if_blocked(
 
 async def _status_text(b: Battle) -> str:
     n1 = await bs.get_user_display_name(b.initiator_id)
-    if b.is_ai_opponent:
-        n2 = bs.AI_DISPLAY_NAME
-    elif b.opponent_id is not None:
-        n2 = await bs.get_user_display_name(b.opponent_id)
-    else:
-        n2 = "?"
+    n2 = await bs.get_battle_opponent_display_name(b)
     nxt = ""
     if b.status == "active":
         if b.current_turn == bs.TURN_INITIATOR:
@@ -344,10 +339,7 @@ async def _show_finish(bot: Bot, b: Battle) -> None:
         )
         b = await bs.get_battle(b.id) or b
     n1 = await bs.get_user_display_name(b.initiator_id)
-    if b.is_ai_opponent:
-        n2 = bs.AI_DISPLAY_NAME
-    else:
-        n2 = await bs.get_user_display_name(b.opponent_id or 0)
+    n2 = await bs.get_battle_opponent_display_name(b)
     i_s, o_s = b.initiator_score, b.opponent_score
     kb = _kb_finish()
     if i_s == o_s:
@@ -544,6 +536,27 @@ async def _start_battle_flow_after_accept(bot: Bot, battle_id: int) -> None:
     if b:
         await _broadcast_status(bot, b)
     await do_round(bot, battle_id)
+
+
+async def _auto_start_disguised_ai_random(
+    bot: Bot, initiator_id: int, battle_id: int, invite_id: int
+) -> None:
+    """After random invite window with no accept — start AI battle under a human-like name."""
+    b = await bs.get_battle(battle_id)
+    if not b:
+        return
+    await _clear_random_messages(bot, invite_id)
+    fake_name = bs.pick_fake_opponent_name(b.level)
+    if not await bs.start_random_with_ai(
+        battle_id, invite_id, opponent_display_name=fake_name
+    ):
+        return
+    await _safe_send(
+        bot,
+        initiator_id,
+        f"✅ {fake_name} 님이 수락했습니다! 배틀 시작! ⚔️",
+    )
+    await _start_battle_flow_after_accept(bot, battle_id)
 
 
 async def _clear_random_messages(bot: Bot, invite_id: int) -> None:
@@ -760,7 +773,7 @@ async def on_battle_callback(callback: CallbackQuery) -> None:
 
         key = (bid, iid)
 
-        async def wait_ai_offer() -> None:
+        async def wait_random_fallback() -> None:
             await asyncio.sleep(bs.RANDOM_WINDOW_SEC)
             pair = await bs.get_invite(iid)
             if not pair:
@@ -770,16 +783,12 @@ async def on_battle_callback(callback: CallbackQuery) -> None:
                 return
             if inv.status != "pending":
                 return
-            await _safe_send(
-                bot,
-                callback.from_user.id,
-                "⏰ 아무도 🎲랜덤 배틀 하고 싶지 않네요 ㅜㅜ \n"
-                "🤖 AI와 배틀을 해보실래요 ? \n"
-                "🎲아니면 다른 50명에게 다시 초대를 보내실래요 ?",
-                reply_markup=_kb_ai_offer(bid, iid),
+            _random_ai_tasks.pop(key, None)
+            await _auto_start_disguised_ai_random(
+                bot, callback.from_user.id, bid, iid
             )
 
-        _random_ai_tasks[key] = asyncio.create_task(wait_ai_offer())
+        _random_ai_tasks[key] = asyncio.create_task(wait_random_fallback())
         try:
             await callback.message.edit_text(
                 f"🎲랜덤으로 {len(uids)}명에게 초대를 보냈습니다. 잠시만 기다려 주세요…"
@@ -845,7 +854,7 @@ async def on_battle_callback(callback: CallbackQuery) -> None:
 
             await asyncio.gather(*(one(u) for u in uids))
 
-            async def wait_ai_offer2() -> None:
+            async def wait_random_fallback2() -> None:
                 await asyncio.sleep(bs.RANDOM_WINDOW_SEC)
                 pair2 = await bs.get_invite(new_iid)
                 if not pair2:
@@ -855,17 +864,13 @@ async def on_battle_callback(callback: CallbackQuery) -> None:
                     return
                 if inv2.status != "pending":
                     return
-                await _safe_send(
-                    bot,
-                    callback.from_user.id,
-                    "⏰ 아무도 🎲랜덤 배틀 하고 싶지 않네요 ㅜㅜ \n"
-                    "🤖 AI와 배틀을 해보실래요 ?"
-                    "\n🎲아니면 다른 50명에게 다시 초대를 보내실래요 ?",
-                    reply_markup=_kb_ai_offer(bid, new_iid),
+                _random_ai_tasks.pop((bid, new_iid), None)
+                await _auto_start_disguised_ai_random(
+                    bot, callback.from_user.id, bid, new_iid
                 )
 
             _random_ai_tasks[(bid, new_iid)] = asyncio.create_task(
-                wait_ai_offer2())
+                wait_random_fallback2())
             await _safe_send(
                 bot,
                 callback.from_user.id,

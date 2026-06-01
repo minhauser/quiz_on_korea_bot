@@ -33,6 +33,45 @@ TURN_OPPONENT = "opponent"
 
 AI_DISPLAY_NAME = "🤖 AI"
 
+# Keys match bot.LEVEL_BEGINNER / LEVEL_INTERMEDIATE / LEVEL_ADVANCED ("초급", "중급", "고급").
+FAKE_OPPONENT_NAMES_BY_LEVEL: dict[str, tuple[str, ...]] = {
+    "초급": (
+        "Fatima",
+        "Feruza",
+        "Husniya",
+        "Ziyoda",
+        "Shahnoza",
+        "이지수",
+    ),
+    "중급": (
+        "Lisa",
+        "Munisa",
+        "Malika",
+        "Kamila",
+        "Sofiya",
+        "나비",
+    ),
+    "고급": (
+        "Sunnatulla",
+        "이지성",
+        "권민혁",
+        "Sulton",
+        "Akmal",
+        "Abdulboriy",
+        "이혜원",
+    ),
+}
+
+
+def pick_fake_opponent_name(level: str) -> str:
+    names = FAKE_OPPONENT_NAMES_BY_LEVEL.get(level)
+    if names:
+        return random.choice(names)
+    fallback = tuple(
+        n for pool in FAKE_OPPONENT_NAMES_BY_LEVEL.values() for n in pool
+    )
+    return random.choice(fallback) if fallback else "Player"
+
 
 @asynccontextmanager
 async def _db():
@@ -69,6 +108,9 @@ def _row_battle(t: tuple) -> Battle:
         finished_at=t[15],
         finish_notified_initiator=int(t[16] or 0) if len(t) > 16 else 0,
         finish_notified_opponent=int(t[17] or 0) if len(t) > 17 else 0,
+        ai_opponent_display_name=(
+            str(t[18]).strip() if len(t) > 18 and t[18] else None
+        ),
     )
 
 
@@ -175,6 +217,16 @@ async def create_battle(
         return int(cur.lastrowid or 0)
 
 
+async def get_battle_opponent_display_name(b: Battle) -> str:
+    if b.is_ai_opponent:
+        if b.ai_opponent_display_name:
+            return b.ai_opponent_display_name
+        return AI_DISPLAY_NAME
+    if b.opponent_id is not None:
+        return await get_user_display_name(b.opponent_id)
+    return "?"
+
+
 async def get_user_display_name(user_id: int) -> str:
     async with _db() as db:
         cur = await db.execute(
@@ -205,6 +257,7 @@ async def update_battle(battle_id: int, **kwargs: Any) -> bool:
         "opponent_score", "current_turn", "initiator_answers_cnt", "opponent_answers_cnt",
         "used_word_ids", "current_word_id", "forfeit_by", "finished_at",
         "finish_notified_initiator", "finish_notified_opponent",
+        "ai_opponent_display_name",
     }
     cols, vals = [], []
     for k, v in kwargs.items():
@@ -406,10 +459,17 @@ async def try_accept_invite(
     return "ok", nb, ninv
 
 
-async def start_random_with_ai(battle_id: int, invite_id: int) -> bool:
+async def start_random_with_ai(
+    battle_id: int,
+    invite_id: int,
+    *,
+    opponent_display_name: str | None = None,
+) -> bool:
     """
     If battle still waiting with no human opponent, enable AI, activate battle.
+    opponent_display_name: shown to initiator instead of AI label (random 배틀 fallback).
     """
+    display = (opponent_display_name or "").strip() or None
     async with _db() as db:
         c2 = await db.execute(
             "SELECT * FROM battles WHERE id = ? AND status = 'waiting' AND (opponent_id IS NULL OR opponent_id = 0) AND is_ai_opponent = 0",
@@ -423,10 +483,11 @@ async def start_random_with_ai(battle_id: int, invite_id: int) -> bool:
         await db.execute(
             """
             UPDATE battles
-            SET is_ai_opponent = 1, status = 'active', opponent_id = NULL, current_turn = 'initiator'
+            SET is_ai_opponent = 1, status = 'active', opponent_id = NULL, current_turn = 'initiator',
+                ai_opponent_display_name = ?
             WHERE id = ?
             """,
-            (battle_id,),
+            (display, battle_id),
         )
         await db.commit()
     return True
@@ -497,7 +558,8 @@ async def renew_random_invite(
         await db.execute(
             """
             UPDATE battles
-            SET status = 'waiting', is_ai_opponent = 0, opponent_id = NULL, finished_at = NULL
+            SET status = 'waiting', is_ai_opponent = 0, opponent_id = NULL, finished_at = NULL,
+                ai_opponent_display_name = NULL
             WHERE id = ?
             """,
             (battle_id,),

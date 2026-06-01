@@ -9,11 +9,15 @@ env/
 *.egg-info/
 .eggs/
 
-# IDE / OS
+# IDE / OS / Cursor
 .idea/
 .vscode/
+.cursor/
 .DS_Store
 Thumbs.db
 
-# local DB (backup is in db_backup/ and pushed by the bot)
+# Local SQLite (production DB on Railway Volume: DB_PATH=/data/quiz_bot.db)
 quiz_bot.db
+quiz_bot.db-wal
+quiz_bot.db-shm
+*.db-journal

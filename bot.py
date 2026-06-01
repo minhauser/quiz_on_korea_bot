@@ -344,6 +344,10 @@ async def init_db():
             await db.execute(
                 "ALTER TABLE battles ADD COLUMN finish_notified_opponent INTEGER NOT NULL DEFAULT 0"
             )
+        if "ai_opponent_display_name" not in battle_columns:
+            await db.execute(
+                "ALTER TABLE battles ADD COLUMN ai_opponent_display_name TEXT"
+            )
         await db.execute(
             """
             CREATE TABLE IF NOT EXISTS battle_invites (
