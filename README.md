@@ -16,6 +16,13 @@
 
 Telegram 기반 퀴즈 봇을 통해 별도의 앱 설치 없이 한국어 단어를 학습할 수 있도록 구현했습니다.
 
+### Project Status Badges
+
+[![Deployment](https://img.shields.io/badge/Deployment-Railway-blue)](https://railway.app)
+[![Tests](https://img.shields.io/badge/Tests-Manual%20%2F%20Pytest-yellowgreen)](#)
+[![Tech](https://img.shields.io/badge/Tech-Python%20%7C%20Aiogram%20%7C%20SQLite-lightgrey)](#)
+[![Demo](https://img.shields.io/badge/Demo-Core%20Features-red)](#)
+
 ### Tech Stack
 
 * Python
@@ -119,6 +126,10 @@ Aiogram Bot
   ▼
 SQLite Database
 ```
+
+## Architecture Diagrams
+
+![Quiz Bot Flowchart](Flowchart_Quiz.svg)
 
 ### Components
 
@@ -255,6 +266,57 @@ python bot.py
 * 학습 통계 대시보드
 * 관리자 페이지
 * AI 기반 문제 생성
+
+---
+
+# Tradeoff Decisions
+
+## Situation
+
+- Telegram 기반 퀴즈 봇을 Python과 Aiogram으로 빠르게 구현해야 했습니다.
+- 배포 환경은 Railway로 제한되어 있으며, 지속성 있는 저장소가 필요했습니다.
+- 프로젝트에는 별도의 프론트엔드가 없고, 주로 백엔드 로직과 봇 흐름이 핵심입니다.
+
+## Alternatives
+
+- SQLite + Railway Volume
+- PostgreSQL/MySQL 또는 외부 DB 서비스
+- Aiogram 프레임워크 vs raw Telegram Bot API / 다른 Python 텔레그램 라이브러리
+- 로컬 `.env` + `.gitignore` vs 코드 내 환경값 하드코딩
+- GitHub 백업 자동화 vs 파일 시스템 백업 또는 백업 미구현
+
+## Selection Criteria
+
+- 빠른 개발과 배포
+- 낮은 운영 비용 / 간단한 인프라
+- 데이터 지속성 및 봇 세션 안정성
+- 보안: 토큰과 민감 정보 분리
+- 유지보수성과 확장성
+
+## Experience
+
+- SQLite는 단순한 데이터 모델과 적은 트래픽에는 충분했습니다.
+- Railway Volume을 통해 로컬 SQLite 파일을 유지하면서도 배포 환경에서 데이터가 유지되는 구조를 확보했습니다.
+- Aiogram의 async 핸들러는 Telegram 콜백 흐름과 배틀 로직을 깔끔하게 관리하는 데 도움이 되었습니다.
+- 환경 변수 방식으로 `BOT_TOKEN`과 `GITHUB_TOKEN`을 분리한 것은 보안과 배포 일관성 측면에서 유리했습니다.
+
+## Result
+
+- 선택된 구조: Python + Aiogram + SQLite + Railway Volume
+- 장점: 간단한 배포, 빠른 개발, 낮은 운영 부담
+- 단점: 고부하나 다중 인스턴스 환경에서는 SQLite 확장성이 제한적
+- 이후 개선 방향: 트래픽 증가 시 관리형 관계형 DB로 마이그레이션, 테스트 커버리지 및 모니터링 추가
+
+## Technology Trade-off Table
+
+| Technology | Situation | Alternatives | Selection Criteria | Decision | Result | Challenges |
+|---|---|---|---|---|---|---|
+| Python | 빠른 백엔드 개발이 필요함 | Node.js, Go, Java | 빠른 생산성, 풍부한 라이브러리, Async 지원 | Python 선택 | 빠르게 프로토타이핑 가능 | GIL로 고부하 동시성은 추가 설계 필요 |
+| Aiogram | Telegram Bot API를 효율적으로 사용해야 함 | raw Telegram API, python-telegram-bot | Telegram 특화 라우팅, async 콜백 처리 | Aiogram 선택 | 퀴즈/배틀 플로우 구현이 쉬워짐 | 라이브러리 버전 의존성 관리 필요 |
+| SQLite | 간단한 배포 환경에서 DB 지속성이 필요함 | PostgreSQL, MySQL, 외부 DB 서비스 | 설치/운영 간편성, 비용, 데이터 지속성 | SQLite 선택 | Railway 볼륨과 함께 간단하게 운영 가능 | 다중 인스턴스 확장성 제한 |
+| Railway | 빠르게 배포하고 환경변수를 관리해야 함 | VPS, Docker, AWS/GCP | 배포 편의성, 자동화, 비용 | Railway 선택 | 배포가 쉬워짐 | 인프라 제어는 제한적 |
+| GitHub 백업 | DB 백업과 이력 관리를 자동화해야 함 | S3, DB 스냅샷, 외부 백업 | 백업 자동화, 접근성, 권한 관리 | GitHub 백업 선택 | GitHub 이력으로 백업 가능 | 토큰 관리 필요 |
+| .env | 민감 정보를 코드에서 분리해야 함 | 하드코딩, config 파일 커밋 | 보안, 배포 환경 분리 | .env 사용 | 민감 정보 분리로 보안 강화 | 운영 시 환경 변수 관리 필요 |
 
 ---
 
