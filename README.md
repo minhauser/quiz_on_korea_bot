@@ -260,59 +260,58 @@ python bot.py
 
 # 직무별 README 강조점
 
-## Frontend (화면 흐름·컴포넌트·상태관리)
-
-### 컴포넌트 아키텍처 및 상태 관리 구조도
-
-- 전역/지역 상태 관리 방식 (Redux, Zustand, Recoil 등) 과 데이터 흐름
-- 기술 재사용성을 고려한 공통 컴포넌트 설계 구조 설명
-
-### 사용자 경험(UX) 및 성능 최적화
-
-- 화면 흐름도(User Flow) 또는 주요 핵심 기능 GIF 데모
-- 초기 로딩 속도 개선(Code Splitting, Lazy Loading) 및 렌더링 최적화 사례
-
----
+이 프로젝트는 Python과 Aiogram으로 구현된 Telegram Quiz Bot으로, 전체 구조는 백엔드 중심 README 형식으로 정리하는 것이 가장 적합합니다.
 
 ## Backend (API·DB·인증/인가)
 
-### 시스템 아키텍처 및 ERD (데이터베이스 설계도)
+### 시스템 아키텍처 및 ERD
 
-- 테이블 간의 관계를 명확히 보여주는 ERD 이미지 첨부
-- 서버 구성 및 데이터 흐름을 한눈에 보는 아키텍처 다이어그램
+- Telegram 메시지와 Callback 요청이 `aiogram` 핸들러로 들어와 처리되는 흐름을 중심으로 설명합니다.
+- 주요 데이터 모델: `users`, `user_stats`, `battles`, `battle_invites`, `battle_messages`, `quiz_sessions`.
+- ERD 이미지를 첨부하거나, 테이블 간 관계도와 외래키 연결을 도식화하여 저장 구조를 명확히 표현합니다.
 
-### API 명세 및 보안 프로세스
+### Bot Command API 및 매칭 시스템
 
-- 핵심 API 리스트 (Swagger 링크 또는 Markdown 테이블 정리)
-- JWT, OAuth2 등을 활용한 로그인(인증/인가) 처리 흐름 기술
+- 핵심 명령어/핸들러 정리:
+  - `/start` — 봇 초기화 및 메인 메뉴 표시
+  - `/quiz` 또는 퀴즈 메뉴 진입 — 난이도 선택 및 문제 출제
+  - `/battle` — 배틀 초대, 수락, 랜덤 매칭 처리
+  - `/ranking`, `/stats` — 사용자 점수 및 순위 조회
+- 배틀 매칭 로직:
+  - 초대 생성 → 특정 초대 토큰 기반 참가자 매칭
+  - 10초 대기 후 랜덤 AI/봇 대체 매칭
+  - 배틀 상태 전이(대기→진행→종료)와 DB 저장 방식
 
----
+### DB 설계 및 사용자 데이터 저장 방식
 
-## Security (위협 모델·권한 통제)
+- 사용자별 진행 상태와 레벨, 정답 스트릭(`LEVEL_UP_CORRECT_STREAK`, `LEVEL_DOWN_WRONG_STREAK`)을 DB에 저장합니다.
+- 퀴즈 진행 기록 및 배틀 기록을 별도로 분리하여 통계와 재개 로직을 지원합니다.
+- SQLite 파일(`quiz_bot.db`)은 Railway 볼륨으로 유지하며, 로컬 및 배포 환경에서 `DB_PATH`로 분리합니다.
 
-### 위협 모델링 및 취약점 분석 점검표
+### 배포 구조 및 운영
 
-- 프로젝트에서 발생할 수 있는 보안 위협(예: OWASP Top 10) 정의 및 대응책
-- 입력값 검증, SQL Injection 및 XSS 방어 로직 설명
+- Railway 배포 구성:
+  - `BOT_TOKEN`, `DB_PATH`, `GITHUB_TOKEN`, `GITHUB_REPOSITORY` 환경 변수 사용
+  - `/data` 볼륨 마운트로 SQLite 지속성 확보
+- 선택적 DB 백업:
+  - `GITHUB_TOKEN`과 `GITHUB_REPOSITORY`가 설정된 경우 주기적 GitHub 업로드로 백업
+  - 환경 변수 비노출 정책으로 민감값은 코드에서 분리
 
-### 접근 제어 및 권한 관리 체계
+### 보안 및 운영 안정성
 
-- 사용자 역할(Role)별 페이지/API 접근 권한 통제 매트릭스
-- 민감 데이터(비밀번호, 개인정보) 암호화 알고리즘 및 키 관리 방식
+- 민감 정보는 `.env` 또는 배포 환경 변수에만 저장하고 코드/레포에는 절대 커밋하지 않습니다.
+- Telegram Bot Token과 GitHub Token의 노출 방지, `.gitignore`에 `.env`와 `quiz_bot.db`를 포함합니다.
+- 입력값 검증과 예외 처리로 잘못된 Callback 데이터 또는 DB 오류가 발생해도 서비스가 중단되지 않도록 설계합니다.
 
----
+## GitHub Issue / PR 관리 및 Troubleshooting
 
-## Data (데이터 출처·정제·지표)
-
-### 데이터 파이프라인 및 수집 출처
-
-- 데이터 수집 대상(공공 API, 크롤링, DB 로그 등)과 수집 주기 명시
-- ETL(추출·변환·적재) 데이터 파이프라인 구조도
-
-### 데이터 정제 기술 및 핵심 지표(KPI)
-
-- 결측치, 이상치 처리 및 정규화 등 데이터 전처리 기준 기록
-- 프로젝트를 통해 도출한 핵심 비즈니스 지표 및 시각화 대시보드 설명
+- 커밋 메시지는 Conventional Commits 방식(`feat`, `fix`, `docs`, `chore`, `refactor` 등)으로 관리합니다.
+- 주요 변경 사항과 배포 이력은 `README`와 `DEPLOY.md`에 기록하여 협업 시 참고할 수 있게 합니다.
+- 장애 대응 항목:
+  - `BOT_TOKEN` 오류
+  - `DB_PATH` 또는 볼륨 미설정
+  - 매칭/배틀 로직 예외
+  - 로깅과 에러 메시지 확인 절차
 
 # Author
 
