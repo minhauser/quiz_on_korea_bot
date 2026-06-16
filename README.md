@@ -161,101 +161,423 @@ SQLite Database
 
 # Runbook
 
-## Local Run
+## Prerequisites
+
+다음 항목들이 필요합니다:
+
+- **Python** 3.8 이상
+- **pip** (Python 패키지 관리자)
+- **Git** (소스 코드 클론용)
+- **Telegram Bot Token** - [BotFather](https://t.me/botfather)에서 생성
+  - BotFather에 `/start` 메시지를 보낸 후 `/newbot`으로 새 봇 생성
+  - 수신한 토큰을 `BOT_TOKEN` 환경 변수로 사용
+- **Railway 계정** (Railway 배포 시) - [Railway.app](https://railway.app)
+
+---
+
+## Installation
+
+### 1. 저장소 클론
 
 ```bash
 git clone https://github.com/minhauser/quiz_on_korea_bot.git
-
 cd quiz_on_korea_bot
+```
 
-python -m venv venv
+### 2. 가상 환경 설정
 
+```bash
+# macOS / Linux
+python3 -m venv venv
 source venv/bin/activate
-# Windows
-venv\Scripts\activate
 
+# Windows (PowerShell)
+python -m venv venv
+venv\Scripts\Activate.ps1
+
+# Windows (Command Prompt)
+python -m venv venv
+venv\Scripts\activate.bat
+```
+
+### 3. 필수 라이브러리 설치
+
+```bash
 pip install -r requirements.txt
 ```
 
-### Environment Variables
+**requirements.txt 구성:**
+- `aiogram>=3.0.0` - Telegram Bot API 프레임워크 (async 기반 핸들러)
+- `aiosqlite>=0.22.0` - SQLite 비동기 드라이버
+- `openpyxl>=3.1.0` - 엑셀 파일 생성 및 내보내기
+- `python-dotenv>=1.0.0` - `.env` 파일에서 환경 변수 로드
+
+---
+
+## Environment Variables
+
+### 샘플 파일 (.env.example)
 
 ```env
-BOT_TOKEN=your_telegram_bot_token
+# [필수] Telegram Bot Token (BotFather에서 받은 토큰)
+BOT_TOKEN=your_telegram_bot_token_here
+
+# [필수] 데이터베이스 경로 (로컬 개발)
 DB_PATH=./data/quiz_bot.db
+
+# [선택] GitHub 백업 설정
+# GitHub 토큰 (Personal Access Token with repo scope)
+GITHUB_TOKEN=your_github_token_here
+
+# GitHub 저장소 (format: owner/repo)
+GITHUB_REPOSITORY=minhauser/quiz_bot_backup
+
+# 백업 간격 (초 단위, 기본값: 300초 = 5분)
+BACKUP_INTERVAL_SEC=300
 ```
 
-### Start
+### 환경 변수 설정 방법
+
+#### 로컬 개발 환경
+
+1. 프로젝트 루트에 `.env` 파일 생성:
 
 ```bash
+cp .env.example .env
+# 또는 수동으로 .env 파일 생성 후 위 내용 입력
+```
+
+2. 각 변수 값 입력:
+   - `BOT_TOKEN`: BotFather에서 받은 토큰 입력
+   - `DB_PATH`: 로컬 데이터베이스 저장 경로 (기본값: `./data/quiz_bot.db`)
+   - 선택 변수는 필요한 경우에만 입력
+
+#### Railway 배포 환경
+
+Railway 대시보드에서 직접 환경 변수 설정:
+
+1. Railway 프로젝트 선택 → **Variables** 탭
+2. 각 변수 추가:
+   - `BOT_TOKEN`: Telegram 봇 토큰
+   - `DB_PATH`: `/data/quiz_bot.db` (Railway Volume 경로)
+   - 선택 변수: GitHub 백업 설정 (필요 시)
+
+**⚠️ 보안 주의:** `.env` 파일을 Git에 커밋하지 마세요. `.gitignore`에 `.env*` 패턴이 이미 등록되어 있습니다.
+
+---
+
+## Run
+
+### 개발 모드 (Development)
+
+로컬 환경에서 봇을 테스트할 때 사용합니다:
+
+```bash
+# 1. 가상 환경 활성화
+source venv/bin/activate  # macOS/Linux
+# 또는
+venv\Scripts\activate  # Windows
+
+# 2. 봇 실행
 python bot.py
 ```
 
----
+**개발 모드 특징:**
+- 로컬 `.env` 파일에서 환경 변수 자동 로드
+- SQLite 데이터베이스는 `./data/quiz_bot.db` (로컬 파일)
+- 콘솔에 로그 출력 (디버깅 용이)
+- `python-dotenv`가 `.env` 파일을 자동으로 로드
 
-## Railway Deployment
-
-### Variables
-
-```env
-BOT_TOKEN=your_token
-DB_PATH=/data/quiz_bot.db
+**예상 출력:**
+```
+INFO: Starting bot...
+INFO: Connected to database at ./data/quiz_bot.db
+INFO: Polling for updates...
 ```
 
-### Volume
+### 운영 모드 (Production - Railway)
 
-```text
-/data
-```
-
-### Start Command
+Railway 환경에서 자동으로 실행됩니다:
 
 ```bash
+# Railway에서 자동 실행 (수동 실행 불필요)
 python bot.py
 ```
 
----
+**운영 모드 특징:**
+- Railway 환경 변수에서 설정값 로드
+- SQLite 데이터베이스는 `/data/quiz_bot.db` (Railway Volume)
+- 24/7 지속 실행
+- 데이터베이스 자동 백업 (GitHub 토큰이 설정된 경우)
 
-# Troubleshooting
+**Railway 설정 확인:**
+1. Railway 대시보드 → **Settings** → **Environment**
+2. 변수 설정 확인
+3. **Deployments** 탭에서 배포 상태 모니터링
 
-## Bot does not respond
+### 봇 상호작용
 
-### Cause
+Telegram에서 봇과 상호작용:
 
-* BOT_TOKEN 설정 오류
-* BotFather 토큰 만료
-
-### Solution
-
-* BOT_TOKEN 확인
-* Railway Variables 확인
-
----
-
-## Database Error
-
-### Cause
-
-* DB_PATH 설정 오류
-* Volume 미설정
-
-### Solution
-
-* DB_PATH 확인
-* Railway Volume 연결 확인
+1. Telegram 앱 열기
+2. 검색창에서 봇 사용자명 검색 (BotFather에서 받은 이름)
+3. 봇과의 채팅 시작
+4. `/start` 명령어로 메인 메뉴 표시
+5. 제공되는 명령어 사용:
+   - `/quiz` - 퀴즈 시작 (난이도 선택)
+   - `/battle` - 배틀 모드 초대
+   - `/ranking` - 랭킹 조회
+   - `/stats` - 사용자 통계
+   - `/admin` - 관리자 메뉴 (관리자만)
 
 ---
 
-## Battle Matching Not Working
+## Test
 
-### Cause
+### 수동 테스트 (Manual Testing)
 
-* 상대방 미참여
-* 네트워크 지연
+봇이 정상 작동하는지 확인:
 
-### Solution
+```bash
+# 1. 봇 실행
+python bot.py
 
-* 일정 시간 후 자동 매칭 확인
-* 로그 확인
+# 2. 다른 터미널에서 데이터베이스 확인
+python -c "
+import sqlite3
+conn = sqlite3.connect('./data/quiz_bot.db')
+cursor = conn.cursor()
+cursor.execute('SELECT name FROM sqlite_master WHERE type=\"table\"')
+tables = cursor.fetchall()
+print('Tables:', tables)
+conn.close()
+"
+
+# 3. Telegram에서 봇 테스트
+# - /start 명령어 입력
+# - 메뉴 버튼 클릭
+# - 퀴즈 진행 및 정답 제출
+# - 배틀 모드 초대 및 참가 테스트
+```
+
+### 통합 테스트 항목
+
+각 기능별 수동 검증:
+
+| 기능 | 테스트 항목 | 확인 방법 |
+|------|-----------|---------|
+| **명령어** | `/start`, `/quiz`, `/battle`, `/ranking`, `/stats` | Telegram에서 각 명령어 실행 |
+| **퀴즈** | 난이도 선택, 문제 출제, 정답 제출, 스트릭 증감 | 5문제 이상 풀이 후 DB 확인 |
+| **배틀** | 초대 생성, 참가 수락, 매칭, 스코어 기록 | 두 사용자로 배틀 진행 |
+| **DB 저장** | 사용자 데이터, 통계, 배틀 기록 | `sqlite3 ./data/quiz_bot.db` 콘솔에서 쿼리 |
+| **환경 변수** | BOT_TOKEN 로드, DB_PATH 적용 | 봇 실행 콘솔 로그 확인 |
+
+### 데이터베이스 검증
+
+```bash
+# SQLite 콘솔 열기
+sqlite3 ./data/quiz_bot.db
+
+# 테이블 목록 확인
+.tables
+
+# 사용자 정보 확인
+SELECT id, name, level, total_score FROM users LIMIT 5;
+
+# 배틀 기록 확인
+SELECT * FROM battles LIMIT 5;
+
+# 쿼리 종료
+.quit
+```
+
+---
+
+## Troubleshooting
+
+### Bot does not respond to commands
+
+**증상:** 봇에 메시지를 보냈으나 응답 없음
+
+**원인:**
+- `BOT_TOKEN` 설정 오류
+- 토큰이 만료되었거나 잘못됨
+- 봇 프로세스가 종료됨
+- Telegram API 연결 실패
+
+**해결 방법:**
+
+```bash
+# 1. BOT_TOKEN 확인
+cat .env | grep BOT_TOKEN
+
+# 2. 토큰이 유효한지 확인 (curl 사용)
+curl https://api.telegram.org/bot{BOT_TOKEN}/getMe
+# 응답: {"ok":true,"result":{"id":...,"is_bot":true,...}}
+
+# 3. 봇이 실행 중인지 확인
+ps aux | grep bot.py
+
+# 4. 로그 확인
+python bot.py  # 콘솔에서 직접 실행하여 에러 메시지 확인
+
+# 5. 토큰 갱신 (필요 시)
+# BotFather에서 /newbot으로 새 토큰 생성
+# .env 파일에서 BOT_TOKEN 업데이트
+```
+
+### Database Error / "database is locked"
+
+**증상:** 
+```
+sqlite3.OperationalError: database is locked
+```
+
+**원인:**
+- 여러 프로세스가 동시에 DB 접근
+- WAL 파일 손상
+- 파일 시스템 권한 문제
+
+**해결 방법:**
+
+```bash
+# 1. 실행 중인 봇 프로세스 종료
+# Ctrl+C (현재 터미널)
+# 또는
+pkill -f "python bot.py"
+
+# 2. 임시 WAL 파일 확인 및 정리
+ls -la ./data/
+# 파일: quiz_bot.db, quiz_bot.db-wal, quiz_bot.db-shm
+
+# 3. 필요 시 WAL 파일 삭제 (데이터 손실 주의!)
+rm -f ./data/quiz_bot.db-wal ./data/quiz_bot.db-shm
+
+# 4. 데이터베이스 무결성 확인
+sqlite3 ./data/quiz_bot.db "PRAGMA integrity_check;"
+
+# 5. 봇 재시작
+python bot.py
+```
+
+### Battle Matching Not Working
+
+**증상:** 배틀 초대 후 매칭되지 않음
+
+**원인:**
+- 상대방이 초대를 수락하지 않음
+- 매칭 타임아웃 (10초 후 AI 매칭)
+- 데이터베이스에 배틀 데이터 미저장
+- Telegram 메시지 전달 지연
+
+**해결 방법:**
+
+```bash
+# 1. 데이터베이스에서 배틀 상태 확인
+sqlite3 ./data/quiz_bot.db
+SELECT id, initiator_id, participant_id, status FROM battles ORDER BY created_at DESC LIMIT 5;
+
+# 2. 10초 대기 후 자동으로 AI와 매칭됨
+# 설정된 대기 시간 확인 (bot.py에서 BATTLE_WAIT_TIMEOUT)
+
+# 3. 로그 확인
+python bot.py  # 콘솔에서 매칭 관련 로그 메시지 확인
+
+# 4. Telegram 네트워크 상태 확인
+# - 인터넷 연결 상태 확인
+# - VPN 사용 시 Telegram API 접근 확인
+```
+
+### ImportError: No module named 'aiogram'
+
+**증상:**
+```
+ModuleNotFoundError: No module named 'aiogram'
+```
+
+**원인:**
+- 가상 환경이 활성화되지 않음
+- 패키지 설치 미완료
+
+**해결 방법:**
+
+```bash
+# 1. 가상 환경 활성화 확인
+# 터미널 프롬프트에 (venv) 표시 확인
+which python  # 또는 Get-Command python (Windows)
+
+# 2. 가상 환경 재설정
+rm -rf venv  # 또는 rmdir /s venv (Windows)
+python -m venv venv
+source venv/bin/activate  # (또는 Windows: venv\Scripts\activate)
+
+# 3. 패키지 재설치
+pip install -r requirements.txt
+
+# 4. 설치 확인
+python -c "import aiogram; print(aiogram.__version__)"
+```
+
+### Railway Deployment Failed
+
+**증상:** Railway에서 배포 실패
+
+**원인:**
+- 환경 변수 미설정
+- `BOT_TOKEN`이 없음
+- Volume이 연결되지 않음
+- 빌드 오류
+
+**해결 방법:**
+
+```bash
+# 1. Railway 환경 변수 확인
+# Railway 대시보드 → Variables 탭
+# 필수: BOT_TOKEN, DB_PATH (=/data/quiz_bot.db)
+
+# 2. Railway Volume 확인
+# Railway 대시보드 → Settings → Volumes
+# /data 볼륨이 `/data` 경로에 마운트되어 있는지 확인
+
+# 3. Railway 배포 로그 확인
+# Railway 대시보드 → Deployments → 배포 선택 → Logs 탭
+
+# 4. 로컬에서 테스트
+source venv/bin/activate
+python bot.py  # 로컬 실행으로 기본 오류 확인
+
+# 5. Railway에 푸시
+git add .
+git commit -m "fix: deployment issue"
+git push origin main  # 자동 배포 시작
+```
+
+### High CPU / Memory Usage
+
+**증상:** 봇이 과도한 리소스 소비
+
+**원인:**
+- 데이터베이스 쿼리 최적화 부족
+- 메모리 누수
+- 높은 동시 사용자 수
+
+**해결 방법:**
+
+```bash
+# 1. 데이터베이스 인덱스 확인
+sqlite3 ./data/quiz_bot.db
+.indexes
+
+# 2. 느린 쿼리 확인 (bot.py 로그 검토)
+# 필요 시 쿼리 최적화
+
+# 3. 메모리 모니터링
+# 개발 중: top 또는 Resource Monitor로 모니터링
+# Railway: 대시보드의 Metrics 탭에서 CPU/Memory 확인
+
+# 4. 문제 발생 시 봇 재시작
+python bot.py  # 재시작
+```
 
 ---
 
