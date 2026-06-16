@@ -313,8 +313,8 @@ python bot.py
 |---|---|---|---|---|---|---|
 | Python | 빠른 백엔드 개발이 필요함 | Node.js, Go, Java | 빠른 생산성, 풍부한 라이브러리, Async 지원 | Python 선택 | 빠르게 프로토타이핑 가능 | GIL로 고부하 동시성은 추가 설계 필요 |
 | Aiogram | Telegram Bot API를 효율적으로 사용해야 함 | raw Telegram API, python-telegram-bot | Telegram 특화 라우팅, async 콜백 처리 | Aiogram 선택 | 퀴즈/배틀 플로우 구현이 쉬워짐 | 라이브러리 버전 의존성 관리 필요 |
-| SQLite | 간단한 배포 환경에서 DB 지속성이 필요함 | PostgreSQL, MySQL, 외부 DB 서비스 | 설치/운영 간편성, 비용, 데이터 지속성 | SQLite 선택 | Railway 볼륨과 함께 간단하게 운영 가능 | 다중 인스턴스 확장성 제한 |
-| Railway | 빠르게 배포하고 환경변수를 관리해야 함 | VPS, Docker, AWS/GCP | 배포 편의성, 자동화, 비용 | Railway 선택 | 배포가 쉬워짐 | 인프라 제어는 제한적 |
+| SQLite | 간단한 배포 환경에서 DB 지속성이 필요함 | PostgreSQL, MySQL, 외부 DB 서비스 | 설치/운영 간편성, 비용, 데이터 지속성 | SQLite 선택 | Railway 볼륨과 함께 간단하게 운영 가능 | — |
+| Railway | 빠르게 배포하고 환경변수를 관리해야 함 | VPS, Docker, AWS/GCP | 배포 편의성, 자동화, 비용 | Railway 선택 | 배포가 쉬워짐 | — |
 | GitHub 백업 | DB 백업과 이력 관리를 자동화해야 함 | S3, DB 스냅샷, 외부 백업 | 백업 자동화, 접근성, 권한 관리 | GitHub 백업 선택 | GitHub 이력으로 백업 가능 | 토큰 관리 필요 |
 | .env | 민감 정보를 코드에서 분리해야 함 | 하드코딩, config 파일 커밋 | 보안, 배포 환경 분리 | .env 사용 | 민감 정보 분리로 보안 강화 | 운영 시 환경 변수 관리 필요 |
 
