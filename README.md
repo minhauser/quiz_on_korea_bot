@@ -822,29 +822,55 @@ python bot.py  # 재시작
 
 ## Backend (API·DB·인증/인가)
 
-### 시스템 아키텍처 및 ERD
+### 시스템 아키텍처 및 DB 스키마
 
 - Telegram 메시지와 Callback 요청이 `aiogram` 핸들러로 들어와 처리되는 흐름을 중심으로 설명합니다.
-- 주요 데이터 모델: `users`, `user_stats`, `battles`, `battle_invites`, `battle_messages`, `quiz_sessions`.
-- ERD 이미지를 첨부하거나, 테이블 간 관계도와 외래키 연결을 도식화하여 저장 구조를 명확히 표현합니다.
+- 실제 데이터베이스 테이블 구조:
+  - `users` - 사용자 기본 정보 (user_id, username, first_name, total_score, current_level, correct_streak, wrong_streak, blocked_at)
+  - `answers` - 퀴즈 정답 기록 (user_id, word_id, is_correct, delta_score, level, quiz_mode, created_at)
+  - `user_level_scores` - 난이도별 점수 (user_id, quiz_mode, total_score)
+  - `battles` - 배틀 세션 (initiator_id, opponent_id, is_ai_opponent, level, status, initiator_score, opponent_score, current_word_id)
+  - `battle_invites` - 배틀 초대 관리 (battle_id, invited_user_id, invite_token, status, expires_at)
+  - `battle_invite_messages` - 초대 메시지 추적 (invite_id, user_id, message_id)
+- 외래키 관계: answers → users, battle_invites → battles, battle_invite_messages → battle_invites
+- WAL (Write-Ahead Logging) 모드 활성화로 동시성 처리 최적화
 
 ### Bot Command API 및 매칭 시스템
 
-- 핵심 명령어/핸들러 정리:
-  - `/start` — 봇 초기화 및 메인 메뉴 표시
-  - `/quiz` 또는 퀴즈 메뉴 진입 — 난이도 선택 및 문제 출제
-  - `/battle` — 배틀 초대, 수락, 랜덤 매칭 처리
-  - `/ranking`, `/stats` — 사용자 점수 및 순위 조회
-- 배틀 매칭 로직:
-  - 초대 생성 → 특정 초대 토큰 기반 참가자 매칭
-  - 10초 대기 후 랜덤 AI/봇 대체 매칭
-  - 배틀 상태 전이(대기→진행→종료)와 DB 저장 방식
+**핵심 명령어/핸들러:**
+- `/start` — 봇 초기화 및 메인 메뉴 표시 (퀴즈, 배틀, 랭킹, 추천 메뉴)
+- `/quiz` 또는 퀴즈 메뉴 버튼 진입 — 난이도 선택 (초급/중급/고급) 및 문제 출제
+- `/battle` — 배틀 모드 시작 (난이도 선택 후 상대방 찾기)
+- `/ranking` — 난이도별 랭킹 및 TOP 10 조회
+- `/stats` — 사용자 개인 통계 및 점수 조회
+- `/admin` — 관리자 전용 메뉴 (사용자 차단/해제, DB 엑셀 내보내기)
+
+**배틀 매칭 로직:**
+- 배틀 초대 생성 → Deep Link를 포함한 초대 메시지 발송
+- 10초 대기 시간: 상대방이 초대 수락 시 그 사용자와 매칭
+- 10초 후 미응답 시: 자동으로 AI 봇과 매칭 (AI 봇 이름은 레벨별로 생성)
+- 배틀 상태 전이: `waiting` → `in_progress` → `finished`
+- 배틀 결과: 점수 비교 후 승패 결정 및 DB 저장
 
 ### DB 설계 및 사용자 데이터 저장 방식
 
-- 사용자별 진행 상태와 레벨, 정답 스트릭(`LEVEL_UP_CORRECT_STREAK`, `LEVEL_DOWN_WRONG_STREAK`)을 DB에 저장합니다.
-- 퀴즈 진행 기록 및 배틀 기록을 별도로 분리하여 통계와 재개 로직을 지원합니다.
-- SQLite 파일(`quiz_bot.db`)은 Railway 볼륨으로 유지하며, 로컬 및 배포 환경에서 `DB_PATH`로 분리합니다.
+**사용자 레벨 시스템:**
+- 각 사용자는 `current_level` (초급/중급/고급)과 `total_score`를 보유
+- 정답 스트릭 추적: `correct_streak` (연속 정답), `wrong_streak` (연속 오답)
+- 레벨 업: 20개 연속 정답 시 다음 레벨로 승격
+- 레벨 다운: 3개 연속 오답 시 이전 레벨로 강등
+- 최소/최대 레벨: 초급 ↔ 고급 (범위 제한)
+
+**점수 기록:**
+- `answers` 테이블: 모든 퀴즈 문제 풀이 기록 저장
+- `user_level_scores` 테이블: 난이도별 누적 점수 (quiz_mode: "초급"/"중급"/"고급"/"ai")
+- 배틀 점수는 `battles` 테이블에 별도 저장 (배틀 내 점수와 이력 분리)
+
+**데이터 지속성:**
+- SQLite 파일 (`quiz_bot.db`)은 Railway 볼륨 `/data`로 유지
+- 로컬 개발: `DB_PATH=./data/quiz_bot.db`
+- Railway 배포: `DB_PATH=/data/quiz_bot.db`
+- WAL 모드 활성화: 동시 읽기/쓰기 최적화 및 충돌 감소
 
 ### 배포 구조 및 운영
 
