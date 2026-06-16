@@ -1,5 +1,11 @@
 # 🇰🇷 Quiz Telegram Bot (Korean Vocabulary)
 
+[![Deployment](https://img.shields.io/badge/Deployment-Railway-blue)](https://railway.app)
+[![Python](https://img.shields.io/badge/Python-3.11%2B-3776ab)](https://www.python.org/)
+[![Tech Stack](https://img.shields.io/badge/Tech-Aiogram%20%7C%20SQLite-lightgrey)](#tech-stack)
+[![License](https://img.shields.io/badge/License-MIT-green)](#license)
+[![Status](https://img.shields.io/badge/Status-Active-brightgreen)](#)
+
 한국어 학습자를 위한 Telegram 퀴즈 봇입니다.
 
 사용자는 한국어 단어 퀴즈를 통해 어휘력을 향상시킬 수 있으며, 레벨별 문제를 풀고 다른 사용자와 배틀 모드를 진행할 수 있습니다.
@@ -15,13 +21,6 @@
 ### Solution
 
 Telegram 기반 퀴즈 봇을 통해 별도의 앱 설치 없이 한국어 단어를 학습할 수 있도록 구현했습니다.
-
-### Project Status Badges
-
-[![Deployment](https://img.shields.io/badge/Deployment-Railway-blue)](https://railway.app)
-[![Tests](https://img.shields.io/badge/Tests-Manual%20%2F%20Pytest-yellowgreen)](#)
-[![Tech](https://img.shields.io/badge/Tech-Python%20%7C%20Aiogram%20%7C%20SQLite-lightgrey)](#)
-[![Demo](https://img.shields.io/badge/Demo-Core%20Features-red)](#)
 
 ### Tech Stack
 
