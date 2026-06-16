@@ -103,6 +103,80 @@ Telegram 기반 퀴즈 봇을 통해 별도의 앱 설치 없이 한국어 단�
 
 ---
 
+# Issues
+
+## Issue 1: 다국어 퀴즈 데이터 확장
+
+### Background
+현재 프로젝트는 한국어 단어만을 지원합니다. 다양한 언어 학습자를 대상으로 확장하려면 다국어 지원이 필수입니다.
+
+### Task
+- 퀴즈 데이터 구조를 다국어 지원 형식으로 리팩토링
+- 언어 선택 메뉴 추가 (`/start` 커맨드에서 언어 선택)
+- 각 언어별 words.json 파일 생성 (영어, 일본어, 중국어 등)
+- 데이터베이스 스키마에 언어 필드 추가
+
+### Criteria
+완료 조건:
+- [ ] 최소 3개 이상의 언어 지원
+- [ ] 사용자별 선호 언어 저장 기능
+- [ ] 언어 전환 시 기존 점수 유지
+- [ ] 배포 후 테스트 완료
+
+### Notes
+- [Aiogram 국제화 문서](https://docs.aiogram.dev/)
+- [SQLite 데이터 마이그레이션 전략](https://www.sqlite.org/lang_altertable.html)
+
+---
+
+## Issue 2: 학습 분석 대시보드
+
+### Background
+현재 사용자는 `/stats`로 기본 통계만 확인할 수 있습니다. 학습 패턴 분석, 약점 단어 추적, 학습 시간대 통계 등의 심화 분석이 필요합니다.
+
+### Task
+- 시계열 데이터 추적 기능 (일일 점수, 연속 학습일 수)
+- 단어별 정답/오답률 분석
+- 최적 학습 시간대 통계
+- 웹 기반 대시보드 또는 보고서 생성 기능 (`/export` 확장)
+
+### Criteria
+완료 조건:
+- [ ] 최소 7일간의 학습 데이터 저장
+- [ ] 주간 리포트 자동 생성
+- [ ] 취약 단어 추천 알고리즘 구현
+- [ ] 사용자가 `/stats` 또는 `/report` 커맨드로 접근 가능
+
+### Notes
+- 데이터 시각화: [matplotlib](https://matplotlib.org/), [plotly](https://plotly.com/python/)
+- 시계열 저장소: SQLite 쿼리 최적화 또는 [InfluxDB](https://www.influxdata.com/) 고려
+
+---
+
+## Issue 3: 배틀 모드 AI 개선
+
+### Background
+현재 AI 상대는 난이도에 따라 정답 확률을 조정하는 수준입니다. 더 현실적인 사용자 행동 모방과 전략이 필요합니다.
+
+### Task
+- AI 전략 알고리즘 개선 (시간 관리, 위험도 계산)
+- 실제 사용자 플레이 패턴 기반 AI 프로필 생성
+- 배틀 레벨별 AI 강도 조정
+- 초보자 vs 고수 AI 로직 분리
+
+### Criteria
+완료 조건:
+- [ ] AI 승률이 상식적 범위 (40~60% for balanced play)
+- [ ] 배틀 난이도별 AI 구별 가능
+- [ ] 50게임 이상 테스트 후 안정성 확인
+- [ ] 사용자 피드백 수집 및 반영
+
+### Notes
+- 강화 학습 고려: [Q-Learning](https://en.wikipedia.org/wiki/Q-learning)
+- 기존 배틀 데이터 분석으로 사용자 행동 패턴 추출
+
+---
+
 # Architecture
 
 ```text
