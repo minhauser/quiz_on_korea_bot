@@ -165,7 +165,10 @@ SQLite Database
 
 다음 항목들이 필요합니다:
 
-- **Python** 3.8 이상
+- **Python** 3.11 권장 (최소 3.8 이상, Aiogram 3.0.0+ 호환)
+  - 권장: Python 3.11 이상 (최신 성능 및 보안 업데이트)
+  - 최소: Python 3.8+ (asyncio, typing 지원)
+  - ❌ 지원 불가: Python 3.7 이하
 - **pip** (Python 패키지 관리자)
 - **Git** (소스 코드 클론용)
 - **Telegram Bot Token** - [BotFather](https://t.me/botfather)에서 생성
@@ -551,6 +554,177 @@ git add .
 git commit -m "fix: deployment issue"
 git push origin main  # 자동 배포 시작
 ```
+
+### Python Version Compatibility Issues
+
+**증상:** 설치 또는 실행 중 다음 오류들 발생
+```
+SyntaxError: invalid syntax (async/await 관련)
+TypeError: 'coroutine' object is not callable
+ImportError: cannot import name 'asynccontextmanager'
+ModuleNotFoundError: No module named 'aiogram'
+```
+
+**원인:**
+- Python 버전이 3.8 미만
+- Aiogram 3.0.0은 Python 3.8+ (asyncio 지원)을 요구
+- Python 3.7 이하에서는 async/await 문법에 제한이 있음
+
+**해결 방법:**
+
+#### 1. 현재 Python 버전 확인
+
+```bash
+python --version
+# 또는
+python3 --version
+```
+
+**예상 출력:**
+```
+Python 3.11.9  ✅ (권장)
+Python 3.10.x  ✅ (지원)
+Python 3.9.x   ✅ (지원)
+Python 3.8.x   ⚠️ (최소 버전, 가능하지만 권장하지 않음)
+Python 3.7.x   ❌ (지원 불가)
+Python 2.7.x   ❌ (지원 불가)
+```
+
+#### 2. Python 버전 업그레이드 필요 시
+
+**Windows:**
+
+```bash
+# 1. python.org에서 최신 버전 다운로드 및 설치
+# https://www.python.org/downloads/
+# → Python 3.11 또는 3.12 선택
+# → 설치 시 "Add Python to PATH" 체크 (중요!)
+
+# 2. 설치 확인
+python --version
+python -c "import sys; print(sys.version)"
+```
+
+**macOS:**
+
+```bash
+# Homebrew 사용 (권장)
+brew install python@3.11
+
+# 또는 python.org에서 직접 다운로드
+# https://www.python.org/downloads/
+
+# 버전 확인
+python3 --version
+```
+
+**Linux (Ubuntu/Debian):**
+
+```bash
+# 패키지 매니저로 설치
+sudo apt update
+sudo apt install python3.11 python3.11-venv python3.11-dev
+
+# 버전 확인
+python3.11 --version
+
+# 기본 python3 버전 업데이트 (선택)
+sudo update-alternatives --install /usr/bin/python3 python3 /usr/bin/python3.11 1
+```
+
+**Linux (RHEL/CentOS/Fedora):**
+
+```bash
+sudo yum install python3.11 python3.11-devel
+# 또는 (RHEL 9+)
+sudo dnf install python3.11 python3.11-devel
+
+python3.11 --version
+```
+
+#### 3. 다중 Python 버전 관리
+
+사용자가 여러 Python 버전을 설치한 경우 `pyenv` 또는 `conda` 사용:
+
+**pyenv 사용:**
+
+```bash
+# macOS/Linux에 설치
+brew install pyenv  # macOS
+# 또는 Linux: curl https://pyenv.run | bash
+
+# 설치 가능한 버전 확인
+pyenv install --list | grep "3.11"
+
+# Python 3.11 설치
+pyenv install 3.11.9
+
+# 프로젝트에 버전 설정
+cd /path/to/quiz_on_korea_bot
+pyenv local 3.11.9
+
+# 확인
+python --version  # Python 3.11.9
+```
+
+**conda 사용:**
+
+```bash
+# 환경 목록 확인
+conda env list
+
+# Python 3.11 환경 생성
+conda create -n quiz-bot python=3.11
+
+# 환경 활성화
+conda activate quiz-bot
+
+# 버전 확인
+python --version  # Python 3.11.x
+```
+
+#### 4. 기존 프로젝트에서 버전 업그레이드
+
+```bash
+# 1. 가상 환경 비활성화
+deactivate
+
+# 2. 기존 가상 환경 삭제
+rm -rf venv  # macOS/Linux
+# 또는
+rmdir /s venv  # Windows
+
+# 3. Python 3.11 이상으로 새 가상 환경 생성
+python3.11 -m venv venv  # 또는 python3 -m venv venv
+
+# 4. 활성화
+source venv/bin/activate  # macOS/Linux
+# 또는
+venv\Scripts\activate  # Windows
+
+# 5. 패키지 재설치
+pip install --upgrade pip
+pip install -r requirements.txt
+
+# 6. 동작 확인
+python bot.py
+```
+
+#### 5. 호환성 검증
+
+```bash
+# 1. asyncio 모듈 확인
+python -c "import asyncio; print('asyncio 지원됨')"
+
+# 2. Aiogram 설치 및 버전 확인
+pip install aiogram
+python -c "import aiogram; print(f'Aiogram {aiogram.__version__}')"
+
+# 3. 타입 힌팅 지원 확인
+python -c "from typing import Set; print('typing 모듈 지원됨')"
+```
+
+---
 
 ### High CPU / Memory Usage
 
