@@ -133,29 +133,117 @@ SQLite Database
 
 ### Components
 
-#### Bot Layer
+#### Bot Layer (bot.py)
 
-* 사용자 요청 처리
-* 명령어 처리
-* 메시지 응답
+- **메인 엔트리포인트**: asyncio 기반 이벤트 루프 및 Aiogram Dispatcher
+- **명령어 핸들러**: `/start`, `/quiz`, `/battle`, `/ranking`, `/stats`, `/admin`
+- **콜백 핸들러**: 인라인 버튼 클릭, 난이도 선택, 배틀 참가 등
+- **DB 초기화**: SQLite 스키마 생성 및 마이그레이션
+- **선택적 백업**: GitHub으로 주기적 DB 백업
 
-#### Quiz Service
+#### Handlers (handlers/)
 
-* 문제 생성
-* 정답 판별
-* 점수 계산
+- `battle_handler.py`: 배틀 모드 콜백 및 메시지 핸들러
+  - 배틀 난이도 선택, 매칭 인터페이스, 결과 표시
 
-#### Battle Service
+#### Services (services/)
 
-* 배틀 생성
-* 참가자 매칭
-* 승패 계산
+- `battle_service.py`: 배틀 생성, 상태 관리, 점수 계산
+- `battle_ai.py`: AI 상대방 로직 및 수준별 AI 이름 생성
+- `battle_invite.py`: 배틀 초대 및 Deep Link 관리
 
-#### Database
+#### Models (models/)
 
-* 사용자 정보 저장
-* 점수 저장
-* 퀴즈 데이터 저장
+- `battle.py`: 배틀 데이터 구조 (상태, 점수, 참가자 정보)
+
+#### Utils (utils/)
+
+- `battle_timer.py`: 배틀 타이머 관리 및 타임아웃 처리
+
+#### Data (data/)
+
+- `words.json`: 한국어 단어 데이터 (초급/중급/고급 레벨별)
+- `quiz_bot.db`: SQLite 데이터베이스 (Railway 볼륨에서 지속)
+
+---
+
+## Project Structure
+
+```
+quiz_on_korea_bot/
+├── bot.py                    # 메인 봇 애플리케이션 (DB, 핸들러, 비즈니스 로직)
+├── requirements.txt          # Python 패키지 의존성
+├── runtime.txt              # Python 버전 명시 (Railway용: 3.11.9)
+├── .env.example             # 환경 변수 샘플 템플릿
+├── .gitignore               # Git 제외 패턴 (.env*, *.db, __pycache__)
+├── words.json               # 퀴즈 단어 데이터 (초급/중급/고급)
+├── README.md                # 프로젝트 문서
+├── DEPLOY.md                # 배포 가이드
+│
+├── handlers/                # Telegram 핸들러 모듈
+│   ├── __init__.py
+│   └── battle_handler.py    # 배틀 콜백 및 메시지 처리
+│
+├── services/                # 비즈니스 로직 서비스
+│   ├── __init__.py
+│   ├── battle_service.py    # 배틀 생성, 상태 관리
+│   ├── battle_ai.py         # AI 상대방 로직
+│   └── battle_invite.py     # 배틀 초대 및 초대 링크 관리
+│
+├── models/                  # 데이터 모델 & 타입
+│   ├── __init__.py
+│   └── battle.py            # 배틀 관련 데이터 구조
+│
+├── utils/                   # 유틸리티 함수
+│   ├── __init__.py
+│   └── battle_timer.py      # 배틀 타이머 및 타임아웃 관리
+│
+├── db_backup/               # GitHub 백업 저장소 (선택)
+│   └── quiz_bot_backup.db   # 데이터베이스 백업 파일
+│
+├── Railway 설정 파일들
+│   ├── railway.toml         # Railway 네이티브 설정
+│   ├── nixpacks.toml        # Nix 빌드 설정
+│   └── Procfile             # Procfile 프로세스 타입
+│
+└── .github/                 # GitHub 설정
+    └── ...                  # GitHub Actions, PR 템플릿 등
+```
+
+### 주요 파일별 역할
+
+| 파일 | 목적 | 크기 | 유지보수 난도 |
+|------|------|------|---------------|
+| `bot.py` | 메인 봇 로직, DB 초기화, 모든 핸들러 | ~1000+ 라인 | 중상 |
+| `words.json` | 퀴즈 데이터 (단어, 난이도, 선택지) | 구동 | 낮음 |
+| `handlers/battle_handler.py` | 배틀 모드 콜백 처리 | ~300 라인 | 중 |
+| `services/battle_service.py` | 배틀 상태 및 매칭 로직 | ~200 라인 | 중 |
+| `services/battle_ai.py` | AI 상대방 알고리즘 | ~100 라인 | 낮음 |
+| `utils/battle_timer.py` | asyncio 기반 타이머 | ~50 라인 | 낮음 |
+
+### 코드 흐름 예시 (퀴즈 시작)
+
+```
+User: /quiz
+  ↓
+bot.py → handle_quiz_start()
+  ↓
+난이도 선택 키보드 표시 (초급/중급/고급/AI Quiz)
+  ↓
+User: 버튼 클릭 (예: "초급")
+  ↓
+bot.py → handle_quiz_level_selected(callback)
+  ↓
+quiz_session 생성 → 첫 문제 출제
+  ↓
+User: 정답 선택
+  ↓
+bot.py → verify_answer()
+  ├─ 정답 여부 판별
+  ├─ 점수 계산 및 스트릭 업데이트
+  ├─ answers 테이블에 기록
+  └─ 다음 문제 또는 결과 표시
+```
 
 ---
 
