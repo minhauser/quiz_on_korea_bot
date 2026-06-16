@@ -220,18 +220,6 @@ def build_quiz_level_keyboard() -> InlineKeyboardMarkup:
     )
 
 
-def build_language_selection_keyboard() -> InlineKeyboardMarkup:
-    """Create keyboard for language selection"""
-    return InlineKeyboardMarkup(
-        inline_keyboard=[
-            [InlineKeyboardButton(text="🇰🇷 한국어", callback_data="lang:korean")],
-            [InlineKeyboardButton(text="🇺🇿 Ўзбек", callback_data="lang:uzbek")],
-            [InlineKeyboardButton(text="🇺🇸 English", callback_data="lang:english")],
-            [InlineKeyboardButton(text="🇷🇺 Русский", callback_data="lang:russian")],
-        ]
-    )
-
-
 def build_ranking_level_keyboard() -> InlineKeyboardMarkup:
     return InlineKeyboardMarkup(
         inline_keyboard=[
@@ -276,8 +264,7 @@ async def init_db():
                 correct_streak INTEGER NOT NULL DEFAULT 0,
                 wrong_streak INTEGER NOT NULL DEFAULT 0,
                 created_at TEXT NOT NULL,
-                updated_at TEXT NOT NULL,
-                preferred_language TEXT NOT NULL DEFAULT 'korean'
+                updated_at TEXT NOT NULL
             )
             """
         )
@@ -286,8 +273,6 @@ async def init_db():
         await cur.close()
         if "blocked_at" not in columns:
             await db.execute("ALTER TABLE users ADD COLUMN blocked_at TEXT")
-        if "preferred_language" not in columns:
-            await db.execute("ALTER TABLE users ADD COLUMN preferred_language TEXT DEFAULT 'korean')")
         await db.execute(
             """
             CREATE TABLE IF NOT EXISTS answers (
@@ -1356,23 +1341,7 @@ async def cmd_start(message: Message):
         "",
         "Please select a feature from the menu below.",
     ]
-    
-    # Check if user just started (new user) - show language selection
-    if user.get("created_at"):
-        # Existing user - show main menu
-        await message.answer("\n".join(welcome), reply_markup=MAIN_MENU_KB)
-    else:
-        # New user - show language selection first
-        lang_select_msg = [
-            "🌍 퀴즈를 풀 언어를 선택해주세요!",
-            "",
-            "🌍 Viktorinani o'ynash uchun tilni tanlang!",
-            "",
-            "🌍 Пожалуйста, выберите язык для прохождения викторины!",
-            "",
-            "🌍 Please select a language to play the quiz!",
-        ]
-        await message.answer("\n".join(lang_select_msg), reply_markup=build_language_selection_keyboard())
+    await message.answer("\n".join(welcome), reply_markup=MAIN_MENU_KB)
 
 
 @dp.message(F.text.in_({QUIZ_MENU_TEXT, "🔠퀴즈"}))
@@ -1391,106 +1360,6 @@ async def handle_quiz(message: Message):
     text += "\n 🇺🇿 Viktorina darajasini tanlang 🔠\n"
 
     await message.answer(text, reply_markup=build_quiz_level_keyboard())
-
-
-@dp.callback_query(F.data.startswith("lang:"))
-async def handle_language_selected(callback: CallbackQuery):
-    """Handle language selection from /start"""
-    language = callback.data.replace("lang:", "", 1)
-    valid_languages = ["korean", "uzbek", "english", "russian"]
-    
-    if language not in valid_languages:
-        await callback.answer("잘못된 언어입니다.", show_alert=True)
-        return
-    
-    await callback.answer()
-    
-    # Update user's preferred language in database
-    async with _db() as db:
-        await db.execute(
-            "UPDATE users SET preferred_language = ? WHERE user_id = ?",
-            (language, callback.from_user.id),
-        )
-        await db.commit()
-    
-    # Send confirmation and show main menu
-    lang_names = {
-        "korean": "🇰🇷 한국어",
-        "uzbek": "🇺🇿 Ўзбек",
-        "english": "🇺🇸 English",
-        "russian": "🇷🇺 Русский",
-    }
-    
-    confirm_msg = f"언어가 {lang_names[language]}로 설정되었습니다!\n\nLanguage set to {lang_names[language]}!"
-    await callback.message.edit_text(confirm_msg)
-    
-    # Now show main menu
-    user = await get_or_create_user(
-        user_id=callback.from_user.id,
-        username=callback.from_user.username,
-        first_name=callback.from_user.first_name,
-    )
-    
-    level_ko = user["current_level"]
-    level_map_uz = {
-        LEVEL_BEGINNER: "Boshlang'ich",
-        LEVEL_INTERMEDIATE: "O'rta",
-        LEVEL_ADVANCED: "Yuqori",
-    }
-    level_map_ru = {
-        LEVEL_BEGINNER: "Начальный",
-        LEVEL_INTERMEDIATE: "Средний",
-        LEVEL_ADVANCED: "Продвинутый",
-    }
-    level_map_en = {
-        LEVEL_BEGINNER: "Beginner",
-        LEVEL_INTERMEDIATE: "Intermediate",
-        LEVEL_ADVANCED: "Advanced",
-    }
-
-    level_uz = level_map_uz.get(level_ko, level_ko)
-    level_ru = level_map_ru.get(level_ko, level_ko)
-    level_en = level_map_en.get(level_ko, level_ko)
-    score = user["total_score"]
-
-    welcome = [
-        "🇰🇷안녕하세요!",
-        "",
-        "이 봇은 적응형 한국어 단어 퀴즈 봇입니다.",
-        "",
-        f"현재 레벨: {level_ko}",
-        f"총 점수: {score}",
-        "",
-        "아래 메뉴에서 기능을 선택하세요.",
-        "",
-        "🇺🇿Assalomu alaykum!",
-        "",
-        "Bu bot moslashuvchan koreys tili so'z viktorinasi botidir.",
-        "",
-        f"Joriy daraja: {level_uz}",
-        f"Umumiy ball: {score}",
-        "",
-        "Quyidagi menyudan kerakli funksiyani tanlang.",
-        "",
-        "🇷🇺 Здравствуйте!",
-        "",
-        "Этот бот — адаптивный квиз-бот для изучения корейских слов.",
-        "",
-        f"Текущий уровень: {level_ru}",
-        f"Общий счёт: {score}",
-        "",
-        "Пожалуйста, выберите нужную функцию в меню ниже.",
-        "",
-        "🇺🇸 Hello!",
-        "",
-        "This bot is an adaptive Korean vocabulary quiz bot.",
-        "",
-        f"Current level: {level_en}",
-        f"Total score: {score}",
-        "",
-        "Please select a feature from the menu below.",
-    ]
-    await callback.message.answer("\n".join(welcome), reply_markup=MAIN_MENU_KB)
 
 
 @dp.callback_query(F.data.startswith("quiz_lev:"))
