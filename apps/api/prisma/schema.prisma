@@ -1,0 +1,948 @@
+// ============================================================================
+// Korea Study Platform — Prisma Schema
+// Source of truth: 05_Database.md (29 entities).
+//
+// Applied design principles (from 05_Database.md):
+//   - UUID primary keys (time-ordered uuid(7) for index locality at scale)
+//   - Every table has timestamps (created_at / updated_at)
+//   - Soft delete where appropriate (deleted_at on accounts + content)
+//   - Indexed foreign keys
+//   - No duplicated data → denormalized fields normalized into relations
+//   - PostgreSQL target, prepared for horizontal scaling
+//
+// Normalization additions (replace denormalized Doc-05 fields):
+//   - GrammarExample      ← Grammar.examples (was an inline field)
+//   - DailyActivity       ← Statistics.heatmap (was a blob field)
+//   - AICategoryInsight   ← AILearningProfile.weak/strong_categories (arrays)
+// ============================================================================
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ============================================================================
+// ENUMS
+// ============================================================================
+
+enum Role {
+  GUEST
+  STUDENT
+  MODERATOR
+  ADMIN
+  SUPER_ADMIN
+}
+
+enum AuthProvider {
+  EMAIL
+  GOOGLE
+  APPLE
+  KAKAO
+  GUEST
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+  BANNED
+}
+
+enum Theme {
+  LIGHT
+  DARK
+  SYSTEM
+}
+
+/// Content lifecycle status for publishable entities.
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
+
+/// Korean learning levels: 초급 / 중급 / 고급.
+enum Difficulty {
+  BEGINNER
+  INTERMEDIATE
+  ADVANCED
+}
+
+enum PartOfSpeech {
+  NOUN
+  PRONOUN
+  NUMERAL
+  VERB
+  ADJECTIVE
+  DETERMINER
+  ADVERB
+  PARTICLE
+  INTERJECTION
+  CONJUNCTION
+  AFFIX
+  OTHER
+}
+
+enum QuizType {
+  MULTIPLE_CHOICE
+  TYPING
+  LISTENING
+  FLASHCARDS
+  TRANSLATION
+  MATCHING
+  CONVERSATION
+  IMAGE
+  AUDIO
+  BOSS
+}
+
+enum RewardType {
+  COINS
+  XP
+  AVATAR
+  THEME
+  TITLE
+  CHEST
+  BADGE
+}
+
+enum Rarity {
+  COMMON
+  RARE
+  EPIC
+  LEGENDARY
+}
+
+enum NotificationType {
+  DAILY_REMINDER
+  MISSION_REMINDER
+  REVIEW_REMINDER
+  ACHIEVEMENT_UNLOCKED
+  NEW_LESSON
+  EVENT
+  FRIEND_ACTIVITY
+}
+
+enum MissionPeriod {
+  DAILY
+  WEEKLY
+  MONTHLY
+}
+
+enum MediaType {
+  IMAGE
+  AUDIO
+  ILLUSTRATION
+  ICON
+  LESSON_ASSET
+  VIDEO
+}
+
+/// Distinguishes weak vs strong category affinity in the AI profile.
+enum InsightKind {
+  WEAK
+  STRONG
+}
+
+// ============================================================================
+// 1. AUTHENTICATION & PROFILE
+// ============================================================================
+
+/// Doc 05 §1 — Authentication root.
+model User {
+  id            String       @id @default(uuid(7))
+  email         String       @unique
+  passwordHash  String?      @map("password_hash") // null for OAuth / guest accounts
+  provider      AuthProvider @default(EMAIL)
+  emailVerified Boolean      @default(false) @map("email_verified")
+  status        UserStatus   @default(ACTIVE)
+  role          Role         @default(STUDENT)
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  // Relations
+  profile            UserProfile?
+  statistics         Statistics?
+  leaderboard        Leaderboard?
+  aiProfile          AILearningProfile?
+  lessonProgress     LessonProgress[]
+  vocabularyProgress VocabularyProgress[]
+  quizAttempts       QuizAttempt[]
+  achievements       UserAchievement[]
+  missions           UserMission[]
+  inventory          Inventory[]
+  notifications      Notification[]
+  dailyActivity      DailyActivity[]
+  refreshTokens      RefreshToken[]
+  adminLogs          AdminLog[]           @relation("AdminActor")
+  uploadedMedia      MediaLibrary[]       @relation("MediaUploader")
+
+  @@index([status])
+  @@index([role])
+  @@index([provider])
+  @@index([deletedAt])
+  @@map("users")
+}
+
+/// Doc 05 §2 — Personal information (1:1 with User).
+model UserProfile {
+  id               String  @id @default(uuid(7))
+  userId           String  @unique @map("user_id")
+  nickname         String
+  avatar           String?
+  country          String?
+  nativeLanguage   String  @map("native_language")
+  learningLanguage String  @default("ko") @map("learning_language")
+  currentLevel     Int     @default(1) @map("current_level")
+  xp               Int     @default(0)
+  coins            Int     @default(0)
+  diamonds         Int     @default(0)
+  streak           Int     @default(0)
+  longestStreak    Int     @default(0) @map("longest_streak")
+  bio              String?
+  timezone         String  @default("UTC")
+  theme            Theme   @default(SYSTEM)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([nickname])
+  @@index([currentLevel])
+  @@map("user_profiles")
+}
+
+// ============================================================================
+// 2. UNIVERSITY SYSTEM
+// ============================================================================
+
+/// Doc 05 §3 — Supported universities.
+model University {
+  id          String        @id @default(uuid(7))
+  nameKo      String        @map("name_ko")
+  nameEn      String        @map("name_en")
+  city        String?
+  logo        String?
+  description String?
+  ranking     Int?
+  status      ContentStatus @default(DRAFT)
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  faculties Faculty[]
+
+  @@unique([nameEn])
+  @@index([city])
+  @@index([status])
+  @@index([ranking])
+  @@index([deletedAt])
+  @@map("universities")
+}
+
+/// Doc 05 §4 — Faculties belonging to a university.
+model Faculty {
+  id           String  @id @default(uuid(7))
+  universityId String  @map("university_id")
+  name         String
+  description  String?
+  icon         String?
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  university University @relation(fields: [universityId], references: [id], onDelete: Cascade)
+
+  @@unique([universityId, name])
+  @@index([universityId])
+  @@map("faculties")
+}
+
+// ============================================================================
+// 3. CONTENT — CATEGORIES, LESSONS, LEARNING OBJECTS
+// ============================================================================
+
+/// Doc 05 §5 — Vocabulary categories (self-referencing hierarchy).
+model VocabularyCategory {
+  id               String        @id @default(uuid(7))
+  parentCategoryId String?       @map("parent_category")
+  name             String
+  icon             String?
+  difficulty       Difficulty    @default(BEGINNER)
+  sortOrder        Int           @default(0) @map("sort_order")
+  status           ContentStatus @default(DRAFT)
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  parent     VocabularyCategory?  @relation("CategoryHierarchy", fields: [parentCategoryId], references: [id], onDelete: SetNull, onUpdate: Cascade)
+  children   VocabularyCategory[] @relation("CategoryHierarchy")
+  lessons    Lesson[]
+  aiInsights AICategoryInsight[]
+
+  @@index([parentCategoryId])
+  @@index([status])
+  @@index([sortOrder])
+  @@index([deletedAt])
+  @@map("vocabulary_categories")
+}
+
+/// Doc 05 §6 — Lessons.
+model Lesson {
+  id            String        @id @default(uuid(7))
+  categoryId    String        @map("category_id")
+  title         String
+  description   String?
+  difficulty    Difficulty    @default(BEGINNER)
+  estimatedTime Int           @default(0) @map("estimated_time") // minutes
+  xpReward      Int           @default(0) @map("xp_reward")
+  unlockLevel   Int           @default(1) @map("unlock_level")
+  order         Int           @default(0) @map("display_order") // "order" is a SQL reserved word
+  status        ContentStatus @default(DRAFT)
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  category   VocabularyCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  vocabulary Vocabulary[]
+  grammar    Grammar[]
+  dialogues  Dialogue[]
+  progress   LessonProgress[]
+
+  @@index([categoryId])
+  @@index([status])
+  @@index([unlockLevel])
+  @@index([categoryId, order])
+  @@index([deletedAt])
+  @@map("lessons")
+}
+
+/// Doc 05 §7 — Vocabulary item.
+model Vocabulary {
+  id            String       @id @default(uuid(7))
+  lessonId      String       @map("lesson_id")
+  word          String
+  romanization  String?
+  translation   String
+  pronunciation String?
+  partOfSpeech  PartOfSpeech @default(OTHER) @map("part_of_speech")
+  difficulty    Difficulty   @default(BEGINNER)
+  frequency     Int? // corpus frequency rank (lower = more common)
+  audio         String?
+  image         String?
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  lesson           Lesson               @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  exampleSentences ExampleSentence[]
+  progress         VocabularyProgress[]
+
+  @@index([lessonId])
+  @@index([word])
+  @@index([partOfSpeech])
+  @@index([difficulty])
+  @@index([frequency])
+  @@index([deletedAt])
+  @@map("vocabulary")
+}
+
+/// Doc 05 §8 — Example sentences for a vocabulary item.
+model ExampleSentence {
+  id          String  @id @default(uuid(7))
+  wordId      String  @map("word_id")
+  sentenceKo  String  @map("sentence_ko")
+  translation String
+  audio       String?
+  grammarNote String? @map("grammar_note")
+  context     String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  word Vocabulary @relation(fields: [wordId], references: [id], onDelete: Cascade)
+
+  @@index([wordId])
+  @@map("example_sentences")
+}
+
+/// Doc 05 §9 — Grammar pattern. `examples` normalized into GrammarExample.
+model Grammar {
+  id          String     @id @default(uuid(7))
+  lessonId    String     @map("lesson_id")
+  title       String
+  pattern     String
+  explanation String
+  difficulty  Difficulty @default(BEGINNER)
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  lesson   Lesson           @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  examples GrammarExample[]
+
+  @@index([lessonId])
+  @@index([difficulty])
+  @@index([deletedAt])
+  @@map("grammar")
+}
+
+/// Normalization of Grammar.examples (Doc 05 §9 inline field).
+model GrammarExample {
+  id          String  @id @default(uuid(7))
+  grammarId   String  @map("grammar_id")
+  sentenceKo  String  @map("sentence_ko")
+  translation String
+  note        String?
+  order       Int     @default(0) @map("display_order")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  grammar Grammar @relation(fields: [grammarId], references: [id], onDelete: Cascade)
+
+  @@index([grammarId])
+  @@map("grammar_examples")
+}
+
+/// Doc 05 §10 — Dialogues.
+model Dialogue {
+  id         String     @id @default(uuid(7))
+  lessonId   String     @map("lesson_id")
+  title      String
+  scenario   String
+  difficulty Difficulty @default(BEGINNER)
+  audio      String?
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  lesson Lesson         @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  lines  DialogueLine[]
+
+  @@index([lessonId])
+  @@index([difficulty])
+  @@index([deletedAt])
+  @@map("dialogues")
+}
+
+/// Doc 05 §11 — Dialogue lines.
+model DialogueLine {
+  id          String  @id @default(uuid(7))
+  dialogueId  String  @map("dialogue_id")
+  speaker     String
+  text        String
+  translation String
+  audio       String?
+  order       Int     @default(0) @map("display_order")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  dialogue Dialogue @relation(fields: [dialogueId], references: [id], onDelete: Cascade)
+
+  @@index([dialogueId])
+  @@index([dialogueId, order])
+  @@map("dialogue_lines")
+}
+
+// ============================================================================
+// 4. QUIZZES
+// ============================================================================
+
+/// Doc 05 §12 — Quiz templates.
+model QuizTemplate {
+  id          String     @id @default(uuid(7))
+  type        QuizType
+  difficulty  Difficulty @default(BEGINNER)
+  title       String
+  description String?
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  questions QuizQuestion[]
+  attempts  QuizAttempt[]
+
+  @@index([type])
+  @@index([difficulty])
+  @@index([deletedAt])
+  @@map("quiz_templates")
+}
+
+/// Doc 05 §13 — Quiz questions.
+model QuizQuestion {
+  id            String     @id @default(uuid(7))
+  quizId        String     @map("quiz_id")
+  question      String
+  correctAnswer String?    @map("correct_answer") // used by typing/translation; MCQ uses AnswerOption.isCorrect
+  explanation   String?
+  difficulty    Difficulty @default(BEGINNER)
+  xpReward      Int        @default(0) @map("xp_reward")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  quiz    QuizTemplate   @relation(fields: [quizId], references: [id], onDelete: Cascade)
+  options AnswerOption[]
+
+  @@index([quizId])
+  @@index([difficulty])
+  @@map("quiz_questions")
+}
+
+/// Doc 05 §14 — Answer options.
+model AnswerOption {
+  id         String  @id @default(uuid(7))
+  questionId String  @map("question_id")
+  text       String
+  isCorrect  Boolean @default(false) @map("is_correct")
+  order      Int     @default(0) @map("display_order")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  question QuizQuestion @relation(fields: [questionId], references: [id], onDelete: Cascade)
+
+  @@index([questionId])
+  @@map("answer_options")
+}
+
+// ============================================================================
+// 5. PROGRESS
+// ============================================================================
+
+/// Doc 05 §15 — Lesson progress (one row per user/lesson).
+model LessonProgress {
+  id          String    @id @default(uuid(7))
+  userId      String    @map("user_id")
+  lessonId    String    @map("lesson_id")
+  startedAt   DateTime? @map("started_at")
+  completedAt DateTime? @map("completed_at")
+  completion  Int       @default(0) // 0–100 (%)
+  score       Int?
+  reviewDue   DateTime? @map("review_due")
+  mastery     Int       @default(0) // 0–100
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson Lesson @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+  @@index([userId])
+  @@index([lessonId])
+  @@index([reviewDue])
+  @@index([completedAt])
+  @@map("lesson_progress")
+}
+
+/// Doc 05 §16 — Vocabulary progress (spaced repetition state).
+model VocabularyProgress {
+  id           String    @id @default(uuid(7))
+  userId       String    @map("user_id")
+  wordId       String    @map("word_id")
+  timesSeen    Int       @default(0) @map("times_seen")
+  timesCorrect Int       @default(0) @map("times_correct")
+  timesWrong   Int       @default(0) @map("times_wrong")
+  masteryLevel Int       @default(0) @map("mastery_level") // 0–5
+  lastReview   DateTime? @map("last_review")
+  nextReview   DateTime? @map("next_review")
+  favorite     Boolean   @default(false)
+  notes        String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  word Vocabulary @relation(fields: [wordId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, wordId])
+  @@index([userId])
+  @@index([wordId])
+  @@index([nextReview])
+  @@index([userId, favorite])
+  @@map("vocabulary_progress")
+}
+
+/// Doc 05 §17 — Quiz attempts (historical; never cascaded by template delete).
+model QuizAttempt {
+  id          String   @id @default(uuid(7))
+  userId      String   @map("user_id")
+  quizId      String   @map("quiz_id")
+  score       Int      @default(0)
+  accuracy    Float    @default(0) // 0–100 (%)
+  duration    Int      @default(0) // seconds
+  xpEarned    Int      @default(0) @map("xp_earned")
+  completedAt DateTime @default(now()) @map("completed_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quiz QuizTemplate @relation(fields: [quizId], references: [id], onDelete: Restrict)
+
+  @@index([userId])
+  @@index([quizId])
+  @@index([userId, completedAt])
+  @@map("quiz_attempts")
+}
+
+// ============================================================================
+// 6. GAMIFICATION
+// ============================================================================
+
+/// Doc 05 §18 — Achievement definitions.
+model Achievement {
+  id          String  @id @default(uuid(7))
+  title       String  @unique
+  description String
+  icon        String?
+  xpReward    Int     @default(0) @map("xp_reward")
+  condition   Json // structured unlock rule (e.g. { type: "streak", value: 7 })
+  hidden      Boolean @default(false)
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  users UserAchievement[]
+
+  @@index([hidden])
+  @@index([deletedAt])
+  @@map("achievements")
+}
+
+/// Doc 05 §19 — User ↔ Achievement (junction).
+model UserAchievement {
+  id            String   @id @default(uuid(7))
+  userId        String   @map("user_id")
+  achievementId String   @map("achievement_id")
+  earnedAt      DateTime @default(now()) @map("earned_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user        User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  achievement Achievement @relation(fields: [achievementId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, achievementId])
+  @@index([userId])
+  @@index([achievementId])
+  @@map("user_achievements")
+}
+
+/// Doc 05 §20 — Mission definitions ("Daily Missions" generalized via `period`).
+model Mission {
+  id          String        @id @default(uuid(7))
+  title       String
+  description String?
+  goal        Int // target count to complete
+  rewardXp    Int           @default(0) @map("reward_xp")
+  rewardCoins Int           @default(0) @map("reward_coins")
+  difficulty  Difficulty    @default(BEGINNER)
+  period      MissionPeriod @default(DAILY)
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  users UserMission[]
+
+  @@index([period])
+  @@index([difficulty])
+  @@index([deletedAt])
+  @@map("missions")
+}
+
+/// Doc 05 §21 — User mission progress. `assignedOn` enables daily reset history.
+model UserMission {
+  id          String    @id @default(uuid(7))
+  userId      String    @map("user_id")
+  missionId   String    @map("mission_id")
+  assignedOn  DateTime  @default(now()) @map("assigned_on") @db.Date
+  progress    Int       @default(0)
+  completed   Boolean   @default(false)
+  completedAt DateTime? @map("completed_at")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  mission Mission @relation(fields: [missionId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, missionId, assignedOn])
+  @@index([userId])
+  @@index([completed])
+  @@index([userId, assignedOn])
+  @@map("user_missions")
+}
+
+/// Doc 05 §22 — Reward definitions.
+model Reward {
+  id          String     @id @default(uuid(7))
+  type        RewardType
+  title       String
+  icon        String?
+  rarity      Rarity     @default(COMMON)
+  description String?
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  inventory Inventory[]
+
+  @@index([type])
+  @@index([rarity])
+  @@index([deletedAt])
+  @@map("rewards")
+}
+
+/// Doc 05 §23 — User inventory (junction with quantity/equipped).
+model Inventory {
+  id       String  @id @default(uuid(7))
+  userId   String  @map("user_id")
+  rewardId String  @map("reward_id")
+  equipped Boolean @default(false)
+  quantity Int     @default(1) // CHECK (quantity >= 0) added via migration
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reward Reward @relation(fields: [rewardId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, rewardId])
+  @@index([userId])
+  @@index([rewardId])
+  @@index([userId, equipped])
+  @@map("inventory")
+}
+
+// ============================================================================
+// 7. STATISTICS & LEADERBOARD
+// ============================================================================
+
+/// Doc 05 §24 — Aggregate statistics (1:1 with User). `heatmap` normalized
+/// into DailyActivity; counters here are a cached summary.
+model Statistics {
+  id               String @id @default(uuid(7))
+  userId           String @unique @map("user_id")
+  studyMinutes     Int    @default(0) @map("study_minutes")
+  wordsLearned     Int    @default(0) @map("words_learned")
+  wordsMastered    Int    @default(0) @map("words_mastered")
+  lessonsCompleted Int    @default(0) @map("lessons_completed")
+  accuracy         Float  @default(0) // 0–100 (%)
+  totalXp          Int    @default(0) @map("total_xp")
+  loginDays        Int    @default(0) @map("login_days")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("statistics")
+}
+
+/// Normalization of Statistics.heatmap — one row per active day per user.
+model DailyActivity {
+  id               String   @id @default(uuid(7))
+  userId           String   @map("user_id")
+  date             DateTime @db.Date
+  xpEarned         Int      @default(0) @map("xp_earned")
+  studyMinutes     Int      @default(0) @map("study_minutes")
+  lessonsCompleted Int      @default(0) @map("lessons_completed")
+  quizzesCompleted Int      @default(0) @map("quizzes_completed")
+  wordsLearned     Int      @default(0) @map("words_learned")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, date])
+  @@index([userId, date])
+  @@map("daily_activity")
+}
+
+/// Doc 05 §26 — Leaderboard snapshot (1:1 with User).
+/// NOTE: real-time ranking should be served from Redis sorted sets; this table
+/// is a persisted snapshot for history and offline reads.
+model Leaderboard {
+  id             String @id @default(uuid(7))
+  userId         String @unique @map("user_id")
+  weeklyXp       Int    @default(0) @map("weekly_xp")
+  monthlyXp      Int    @default(0) @map("monthly_xp")
+  globalRank     Int?   @map("global_rank")
+  countryRank    Int?   @map("country_rank")
+  universityRank Int?   @map("university_rank")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([weeklyXp])
+  @@index([monthlyXp])
+  @@index([globalRank])
+  @@map("leaderboard")
+}
+
+// ============================================================================
+// 8. NOTIFICATIONS
+// ============================================================================
+
+/// Doc 05 §25 — Notifications.
+model Notification {
+  id     String           @id @default(uuid(7))
+  userId String           @map("user_id")
+  type   NotificationType
+  title  String
+  body   String
+  read   Boolean          @default(false)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([userId, read])
+  @@index([type])
+  @@index([createdAt])
+  @@map("notifications")
+}
+
+// ============================================================================
+// 9. ADMINISTRATION & MEDIA
+// ============================================================================
+
+/// Doc 05 §27 — Admin audit log (append-only; immutable).
+model AdminLog {
+  id       String  @id @default(uuid(7))
+  adminId  String? @map("admin_id") // nullable so logs survive actor deletion
+  action   String
+  entity   String
+  entityId String? @map("entity_id")
+  ip       String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  admin User? @relation("AdminActor", fields: [adminId], references: [id], onDelete: SetNull)
+
+  @@index([adminId])
+  @@index([entity, entityId])
+  @@index([createdAt])
+  @@map("admin_logs")
+}
+
+/// Doc 05 §28 — Media library (fields inferred; Doc lists asset categories).
+model MediaLibrary {
+  id           String    @id @default(uuid(7))
+  type         MediaType
+  url          String
+  fileName     String    @map("file_name")
+  mimeType     String    @map("mime_type")
+  size         Int       @default(0) // bytes
+  alt          String?
+  uploadedById String?   @map("uploaded_by_id")
+
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  uploadedBy User? @relation("MediaUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+
+  @@index([type])
+  @@index([uploadedById])
+  @@index([deletedAt])
+  @@map("media_library")
+}
+
+// ============================================================================
+// 10. AI
+// ============================================================================
+
+/// Doc 05 §29 — AI learning profile (1:1 with User).
+/// weak/strong category arrays normalized into AICategoryInsight.
+model AILearningProfile {
+  id                String  @id @default(uuid(7))
+  userId            String  @unique @map("user_id")
+  learningSpeed     Float?  @map("learning_speed")
+  preferredTime     String? @map("preferred_time")
+  motivationScore   Float?  @map("motivation_score")
+  recommendedReview Json?   @map("recommended_review")
+  aiNotes           String? @map("ai_notes")
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user     User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  insights AICategoryInsight[]
+
+  @@map("ai_learning_profiles")
+}
+
+/// Normalization of AILearningProfile.weak_categories / strong_categories.
+model AICategoryInsight {
+  id         String      @id @default(uuid(7))
+  profileId  String      @map("profile_id")
+  categoryId String      @map("category_id")
+  kind       InsightKind
+  score      Float       @default(0)
+
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  profile  AILearningProfile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+  category VocabularyCategory @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+
+  @@unique([profileId, categoryId, kind])
+  @@index([profileId])
+  @@index([categoryId])
+  @@map("ai_category_insights")
+}
+
+// ============================================================================
+// 11. AUTH SESSIONS (Sprint 1)
+// ============================================================================
+
+/// Refresh-token store enabling rotation + reuse detection.
+/// Raw tokens are never stored — only their SHA-256 hash. A reused (already
+/// revoked) token triggers revocation of the whole `familyId`.
+model RefreshToken {
+  id                String    @id @default(uuid(7))
+  userId            String    @map("user_id")
+  tokenHash         String    @unique @map("token_hash")
+  familyId          String    @map("family_id")
+  expiresAt         DateTime  @map("expires_at")
+  revokedAt         DateTime? @map("revoked_at")
+  replacedByTokenId String?   @map("replaced_by_token_id")
+  userAgent         String?   @map("user_agent")
+  ip                String?
+
+  createdAt DateTime @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([familyId])
+  @@index([expiresAt])
+  @@map("refresh_tokens")
+}

@@ -1,0 +1,16 @@
+{
+  "extends": "@ksp/tsconfig/nestjs.json",
+  "compilerOptions": {
+    "baseUrl": ".",
+    "outDir": "./dist",
+    "paths": {
+      "@/*": ["src/*"],
+      "@shared/*": ["src/shared/*"],
+      "@modules/*": ["src/modules/*"],
+      "@config/*": ["src/config/*"],
+      "@common/*": ["src/common/*"]
+    }
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts", "prisma/seed.ts"],
+  "exclude": ["node_modules", "dist"]
+}

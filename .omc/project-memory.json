@@ -1,0 +1,199 @@
+{
+  "version": "1.0.0",
+  "lastScanned": 1783753011112,
+  "projectRoot": "c:\\Users\\wonst\\2026\\Korean platform\\Korean platform",
+  "techStack": {
+    "languages": [
+      {
+        "name": "JavaScript/TypeScript",
+        "version": null,
+        "confidence": "high",
+        "markers": [
+          "package.json"
+        ]
+      }
+    ],
+    "frameworks": [],
+    "packageManager": "pnpm",
+    "runtime": null
+  },
+  "build": {
+    "buildCommand": null,
+    "testCommand": null,
+    "lintCommand": null,
+    "devCommand": null,
+    "scripts": {}
+  },
+  "conventions": {
+    "namingStyle": null,
+    "importStyle": null,
+    "testPattern": null,
+    "fileOrganization": null
+  },
+  "structure": {
+    "isMonorepo": true,
+    "workspaces": [],
+    "mainDirectories": [
+      "docs",
+      "scripts"
+    ],
+    "gitBranches": null
+  },
+  "customNotes": [],
+  "directoryMap": {
+    "apps": {
+      "path": "apps",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1783753011054,
+      "keyFiles": []
+    },
+    "docs": {
+      "path": "docs",
+      "purpose": "Documentation",
+      "fileCount": 0,
+      "lastAccessed": 1783753011055,
+      "keyFiles": []
+    },
+    "infra": {
+      "path": "infra",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1783753011071,
+      "keyFiles": []
+    },
+    "packages": {
+      "path": "packages",
+      "purpose": null,
+      "fileCount": 0,
+      "lastAccessed": 1783753011071,
+      "keyFiles": []
+    },
+    "scripts": {
+      "path": "scripts",
+      "purpose": "Build/utility scripts",
+      "fileCount": 1,
+      "lastAccessed": 1783753011072,
+      "keyFiles": []
+    },
+    "apps\\api": {
+      "path": "apps\\api",
+      "purpose": "API routes",
+      "fileCount": 10,
+      "lastAccessed": 1783753011073,
+      "keyFiles": [
+        "Dockerfile",
+        "nest-cli.json",
+        "package.json"
+      ]
+    },
+    "docs\\api": {
+      "path": "docs\\api",
+      "purpose": "API routes",
+      "fileCount": 1,
+      "lastAccessed": 1783753011074,
+      "keyFiles": [
+        "openapi.yaml"
+      ]
+    }
+  },
+  "hotPaths": [
+    {
+      "path": "pnpm-workspace.yaml",
+      "accessCount": 3,
+      "lastAccessed": 1783758157521,
+      "type": "file"
+    },
+    {
+      "path": "apps\\api\\prisma\\schema.prisma",
+      "accessCount": 2,
+      "lastAccessed": 1783758629355,
+      "type": "directory"
+    },
+    {
+      "path": "apps\\api\\src\\app.module.ts",
+      "accessCount": 2,
+      "lastAccessed": 1783758629585,
+      "type": "file"
+    },
+    {
+      "path": "",
+      "accessCount": 2,
+      "lastAccessed": 1783913445673,
+      "type": "directory"
+    },
+    {
+      "path": "apps\\api\\package.json",
+      "accessCount": 1,
+      "lastAccessed": 1783754295201,
+      "type": "file"
+    },
+    {
+      "path": "apps\\web\\package.json",
+      "accessCount": 1,
+      "lastAccessed": 1783754295551,
+      "type": "file"
+    },
+    {
+      "path": "README.md",
+      "accessCount": 1,
+      "lastAccessed": 1783754330494,
+      "type": "file"
+    },
+    {
+      "path": "apps\\api\\.env",
+      "accessCount": 1,
+      "lastAccessed": 1783758397063,
+      "type": "file"
+    },
+    {
+      "path": "apps\\web\\src",
+      "accessCount": 1,
+      "lastAccessed": 1783758444492,
+      "type": "directory"
+    },
+    {
+      "path": "apps\\api\\src\\modules\\auth\\presentation\\controllers\\auth.controller.ts",
+      "accessCount": 1,
+      "lastAccessed": 1783758456716,
+      "type": "file"
+    },
+    {
+      "path": "apps\\api\\src\\main.ts",
+      "accessCount": 1,
+      "lastAccessed": 1783758457090,
+      "type": "file"
+    },
+    {
+      "path": "apps\\web\\src\\app\\(app)\\tutor\\page.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1783758488136,
+      "type": "file"
+    },
+    {
+      "path": "apps\\web\\src\\components\\ai-tutor.tsx",
+      "accessCount": 1,
+      "lastAccessed": 1783758495719,
+      "type": "file"
+    },
+    {
+      "path": "apps\\web",
+      "accessCount": 1,
+      "lastAccessed": 1783758506663,
+      "type": "directory"
+    },
+    {
+      "path": "apps\\api\\src\\config\\env.validation.ts",
+      "accessCount": 1,
+      "lastAccessed": 1783758526893,
+      "type": "file"
+    },
+    {
+      "path": "apps\\web\\src\\lib\\mock-data.ts",
+      "accessCount": 1,
+      "lastAccessed": 1783758629414,
+      "type": "file"
+    }
+  ],
+  "userDirectives": []
+}

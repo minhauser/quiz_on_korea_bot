@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"powershell -NoProfile -Command \\\"Stop-Process -Id 26864 -Force\\\"; sleep 1; powershell -NoProfile -Command \\\"Get-NetTCPConnection -LocalPort 4000 -State Listen -ErrorAction SilentlyContinue...",
+  "error": "Exit code 1",
+  "timestamp": "2026-07-11T06:18:19.163Z",
+  "retry_count": 1
+}

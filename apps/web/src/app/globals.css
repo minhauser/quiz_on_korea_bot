@@ -1,0 +1,126 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue',
+    Arial, 'Apple SD Gothic Neo', 'Noto Sans KR', 'Malgun Gothic', sans-serif;
+
+  /* Light theme (secondary) */
+  --background: 220 30% 97%;
+  --foreground: 222 47% 11%;
+  --card: 0 0% 100%;
+  --card-foreground: 222 47% 11%;
+  --popover: 0 0% 100%;
+  --popover-foreground: 222 47% 11%;
+  --primary: 245 75% 60%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 270 70% 62%;
+  --secondary-foreground: 0 0% 100%;
+  --success: 152 64% 42%;
+  --success-foreground: 0 0% 100%;
+  --warning: 38 95% 52%;
+  --warning-foreground: 30 50% 12%;
+  --destructive: 352 80% 58%;
+  --destructive-foreground: 0 0% 100%;
+  --muted: 220 20% 92%;
+  --muted-foreground: 220 12% 42%;
+  --accent: 220 22% 90%;
+  --accent-foreground: 222 47% 11%;
+  --border: 220 20% 86%;
+  --input: 220 20% 86%;
+  --ring: 245 75% 60%;
+  --radius: 0.9rem;
+}
+
+.dark {
+  /* Dark theme (default) — premium gamified palette */
+  --background: 224 44% 7%;
+  --foreground: 210 40% 98%;
+  --card: 223 38% 11%;
+  --card-foreground: 210 40% 98%;
+  --popover: 223 40% 10%;
+  --popover-foreground: 210 40% 98%;
+  --primary: 245 84% 67%;
+  --primary-foreground: 0 0% 100%;
+  --secondary: 270 78% 70%;
+  --secondary-foreground: 0 0% 100%;
+  --success: 152 66% 46%;
+  --success-foreground: 150 60% 6%;
+  --warning: 38 96% 56%;
+  --warning-foreground: 30 60% 8%;
+  --destructive: 352 86% 63%;
+  --destructive-foreground: 0 0% 100%;
+  --muted: 223 28% 17%;
+  --muted-foreground: 218 16% 65%;
+  --accent: 223 30% 18%;
+  --accent-foreground: 210 40% 98%;
+  --border: 223 26% 19%;
+  --input: 223 26% 20%;
+  --ring: 245 84% 67%;
+  --radius: 0.9rem;
+}
+
+* {
+  border-color: hsl(var(--border));
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+@layer utilities {
+  .text-gradient {
+    background-image: linear-gradient(120deg, hsl(var(--primary)), hsl(var(--secondary)));
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+
+  .bg-grid {
+    background-image:
+      linear-gradient(hsl(var(--border) / 0.5) 1px, transparent 1px),
+      linear-gradient(90deg, hsl(var(--border) / 0.5) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  .glass {
+    background-color: hsl(var(--card) / 0.7);
+    backdrop-filter: blur(12px);
+  }
+
+  .no-scrollbar::-webkit-scrollbar {
+    display: none;
+  }
+  .no-scrollbar {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background-color: hsl(var(--border));
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: hsl(var(--muted-foreground) / 0.5);
+  background-clip: content-box;
+}
