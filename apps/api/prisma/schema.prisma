@@ -319,6 +319,7 @@ model Lesson {
   grammar    Grammar[]
   dialogues  Dialogue[]
   progress   LessonProgress[]
+  quizzes    QuizTemplate[]
 
   @@index([categoryId])
   @@index([status])
@@ -467,6 +468,7 @@ model DialogueLine {
 /// Doc 05 §12 — Quiz templates.
 model QuizTemplate {
   id          String     @id @default(uuid(7))
+  lessonId    String?    @map("lesson_id") // null = standalone quiz (e.g. TOPIK mock exam), not tied to a lesson
   type        QuizType
   difficulty  Difficulty @default(BEGINNER)
   title       String
@@ -476,9 +478,11 @@ model QuizTemplate {
   updatedAt DateTime  @updatedAt @map("updated_at")
   deletedAt DateTime? @map("deleted_at")
 
+  lesson    Lesson?        @relation(fields: [lessonId], references: [id], onDelete: Cascade)
   questions QuizQuestion[]
   attempts  QuizAttempt[]
 
+  @@index([lessonId])
   @@index([type])
   @@index([difficulty])
   @@index([deletedAt])

@@ -8,6 +8,13 @@ import { validateEnv } from './config/env.validation';
 import { jwtConfig } from './config/jwt.config';
 import { HealthController } from './health/health.controller';
 import { AuthModule } from './modules/auth/auth.module';
+import { ContentModule } from './modules/content/content.module';
+import { DialoguesModule } from './modules/dialogues/dialogues.module';
+import { GrammarModule } from './modules/grammar/grammar.module';
+import { LearningModule } from './modules/learning/learning.module';
+import { QuizzesModule } from './modules/quizzes/quizzes.module';
+import { ReviewsModule } from './modules/reviews/reviews.module';
+import { VocabularyModule } from './modules/vocabulary/vocabulary.module';
 import { PrismaModule } from './shared/infrastructure/prisma/prisma.module';
 import { AllExceptionsFilter } from './shared/presentation/filters/all-exceptions.filter';
 import { JwtAuthGuard } from './shared/presentation/guards/jwt-auth.guard';
@@ -25,6 +32,13 @@ import { TransformInterceptor } from './shared/presentation/interceptors/transfo
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
     PrismaModule,
     AuthModule,
+    ContentModule,
+    LearningModule,
+    VocabularyModule,
+    GrammarModule,
+    DialoguesModule,
+    QuizzesModule,
+    ReviewsModule,
   ],
   controllers: [HealthController],
   providers: [
