@@ -11,7 +11,14 @@ export class ListLessonsUseCase {
       this.prisma.lesson.findMany({
         where: { deletedAt: null, status: 'PUBLISHED' },
         include: {
-          category: { select: { id: true, name: true, parentCategoryId: true } },
+          category: {
+            select: {
+              id: true,
+              name: true,
+              parentCategoryId: true,
+              parent: { select: { id: true, name: true } },
+            },
+          },
           progress: userId ? { where: { userId } } : false,
           _count: { select: { vocabulary: true } },
         },

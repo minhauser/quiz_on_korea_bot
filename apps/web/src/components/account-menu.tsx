@@ -1,24 +1,27 @@
 'use client';
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { Command, LogOut, RotateCcw, Settings, User } from 'lucide-react';
+import { Command, LogOut, Settings, User } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import * as React from 'react';
 
 import { useTranslations } from '@/i18n/use-translations';
-import { cn, levelFromXp } from '@/shared/lib/utils';
-import { useGameStore } from '@/store/use-game-store';
+import { useLogout } from '@/shared/api/hooks/use-auth';
+import { useMyStats } from '@/shared/api/hooks/use-stats';
+import { levelFromXp } from '@/shared/lib/utils';
 import { useToastStore } from '@/store/use-toast-store';
 import { useUiStore } from '@/store/use-ui-store';
 
 export function AccountMenu() {
   const { t } = useTranslations();
-  const totalXp = useGameStore((s) => s.totalXp);
-  const resetDemo = useGameStore((s) => s.resetDemo);
+  const router = useRouter();
+  const { data: stats } = useMyStats();
+  const logout = useLogout();
   const toast = useToastStore((s) => s.toast);
   const setCommandOpen = useUiStore((s) => s.setCommandOpen);
   const [open, setOpen] = React.useState(false);
 
-  const info = levelFromXp(totalXp);
+  const info = levelFromXp(stats?.profile.xp ?? 0);
   const soon = (label: string) =>
     toast({ icon: '✨', title: label, description: t('common.availableSoon') });
 
@@ -85,29 +88,7 @@ export function AccountMenu() {
                 type="button"
                 onClick={() => {
                   setOpen(false);
-                  resetDemo();
-                  toast({
-                    icon: '↺',
-                    title: t('account.demoResetTitle'),
-                    description: t('account.demoResetDesc'),
-                  });
-                }}
-                className={cn(
-                  'flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm transition-colors hover:bg-accent',
-                )}
-              >
-                <RotateCcw className="size-4 text-muted-foreground" />
-                <span className="flex-1 text-left">{t('account.resetProgress')}</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => {
-                  setOpen(false);
-                  toast({
-                    icon: '👋',
-                    title: t('account.demoModeTitle'),
-                    description: t('account.demoModeDesc'),
-                  });
+                  logout.mutate(undefined, { onSuccess: () => router.push('/login') });
                 }}
                 className="flex w-full items-center gap-2.5 rounded-lg px-2.5 py-2 text-sm text-destructive transition-colors hover:bg-destructive/10"
               >

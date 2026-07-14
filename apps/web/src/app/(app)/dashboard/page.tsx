@@ -8,23 +8,41 @@ import { BarChart } from '@/components/charts/bar-chart';
 import { DailyMissions } from '@/components/daily-missions';
 import { LeaderboardList } from '@/components/leaderboard-list';
 import { StatCard } from '@/components/stat-card';
-import { LESSONS, WEEKLY_XP } from '@/lib/mock-data';
-import { useGameStore } from '@/store/use-game-store';
+import { useLessons } from '@/shared/api/hooks/use-lessons';
+import { useLeaderboard, useMyStats } from '@/shared/api/hooks/use-stats';
+import { useLessonPlayerStore } from '@/store/use-lesson-player-store';
 import { Button } from '@/shared/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
 import { CountUp } from '@/shared/ui/count-up';
 import { levelFromXp } from '@/shared/lib/utils';
 
-export default function DashboardPage() {
-  const { totalXp, streak, wordsLearned, completedLessons, lessonResults, isUnlocked, setActiveLesson, leaderboard } =
-    useGameStore();
+const WEEKDAY_LABELS = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 
-  const level = levelFromXp(totalXp);
-  const next =
-    LESSONS.find((l) => !completedLessons.includes(l.id) && isUnlocked(l.id)) ??
-    LESSONS[LESSONS.length - 1]!;
-  const accs = Object.values(lessonResults).map((r) => r.bestAccuracy);
-  const avgAccuracy = accs.length ? Math.round(accs.reduce((a, b) => a + b, 0) / accs.length) : 0;
+export default function DashboardPage() {
+  const { data: lessons } = useLessons();
+  const { data: stats } = useMyStats();
+  const { data: leaderboard } = useLeaderboard('alltime');
+  const setActiveLesson = useLessonPlayerStore((s) => s.setActiveLesson);
+
+  if (!lessons || !stats) {
+    return <div className="py-16 text-center text-muted-foreground">Loading dashboard…</div>;
+  }
+
+  const level = levelFromXp(stats.profile.xp);
+  const completedLessons = lessons.filter((l) => l.progress?.completedAt);
+  const next = lessons.find((l) => l.unlocked && !l.progress?.completedAt) ?? lessons[lessons.length - 1];
+  const scores = completedLessons.map((l) => l.progress?.score ?? 0);
+  const avgAccuracy = scores.length ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
+
+  const byDate = new Map(stats.heatmap.map((a) => [a.date.slice(0, 10), a.xpEarned]));
+  const today = new Date();
+  const weeklyXp = Array.from({ length: 7 }, (_, i) => {
+    const d = new Date(today);
+    d.setDate(d.getDate() - (6 - i));
+    const key = d.toISOString().slice(0, 10);
+    return { label: WEEKDAY_LABELS[d.getDay()] ?? '', value: byDate.get(key) ?? 0 };
+  });
+  const totalWeeklyXp = weeklyXp.reduce((a, b) => a + b.value, 0);
 
   return (
     <div className="space-y-6">
@@ -58,68 +76,61 @@ export default function DashboardPage() {
               </div>
             </div>
           </div>
-          <Button
-            variant="gradient"
-            size="lg"
-            className="w-full sm:w-auto"
-            onClick={() => setActiveLesson(next.id)}
-          >
-            Continue learning <ArrowRight className="size-4" />
-          </Button>
+          {next && (
+            <Button variant="gradient" size="lg" className="w-full sm:w-auto" onClick={() => setActiveLesson(next.id)}>
+              Continue learning <ArrowRight className="size-4" />
+            </Button>
+          )}
         </div>
       </motion.div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-4">
-        <StatCard icon={<Sparkles className="size-5" />} label="Words learned" value={wordsLearned} index={0} accent="from-primary to-secondary" />
-        <StatCard icon={<Flame className="size-5" />} label="Day streak" value={streak} index={1} accent="from-amber-500 to-orange-500" />
+        <StatCard icon={<Sparkles className="size-5" />} label="Words learned" value={stats.statistics.wordsLearned} index={0} accent="from-primary to-secondary" />
+        <StatCard icon={<Flame className="size-5" />} label="Day streak" value={stats.profile.streak} index={1} accent="from-amber-500 to-orange-500" />
         <StatCard icon={<BookCheck className="size-5" />} label="Lessons done" value={completedLessons.length} index={2} accent="from-emerald-500 to-teal-500" />
         <StatCard icon={<Target className="size-5" />} label="Avg accuracy" value={avgAccuracy} suffix="%" index={3} accent="from-fuchsia-500 to-pink-500" />
       </div>
 
       <div className="grid grid-cols-1 gap-5 lg:grid-cols-3">
-        {/* Main column */}
         <div className="space-y-5 lg:col-span-2">
-          {/* Continue learning */}
-          <Card className="overflow-hidden">
-            <CardHeader>
-              <CardTitle>Continue learning</CardTitle>
-            </CardHeader>
-            <CardContent>
-              <button
-                onClick={() => setActiveLesson(next.id)}
-                className="group flex w-full items-center gap-4 rounded-2xl bg-muted/40 p-4 text-left transition-colors hover:bg-accent"
-              >
-                <span className={`grid size-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br text-3xl shadow-lg sm:size-16 sm:text-4xl ${next.accent}`}>
-                  {next.icon}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="text-xs font-medium text-muted-foreground">{next.chapter}</p>
-                  <p className="truncate text-lg font-bold">{next.title}</p>
-                  <p className="truncate text-sm text-muted-foreground">{next.scenario}</p>
-                </div>
-                <span className="grid size-11 place-items-center rounded-full bg-gradient-to-br from-primary to-secondary text-white transition-transform group-hover:scale-110">
-                  <ArrowRight className="size-5" />
-                </span>
-              </button>
-            </CardContent>
-          </Card>
+          {next && (
+            <Card className="overflow-hidden">
+              <CardHeader>
+                <CardTitle>Continue learning</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <button
+                  onClick={() => setActiveLesson(next.id)}
+                  className="group flex w-full items-center gap-4 rounded-2xl bg-muted/40 p-4 text-left transition-colors hover:bg-accent"
+                >
+                  <span className="grid size-12 shrink-0 place-items-center rounded-2xl bg-gradient-to-br from-primary to-secondary text-3xl text-white shadow-lg sm:size-16 sm:text-4xl">
+                    📘
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium text-muted-foreground">{next.category.parent?.name ?? next.category.name}</p>
+                    <p className="truncate text-lg font-bold">{next.title}</p>
+                    <p className="truncate text-sm text-muted-foreground">{next.description}</p>
+                  </div>
+                  <span className="grid size-11 place-items-center rounded-full bg-gradient-to-br from-primary to-secondary text-white transition-transform group-hover:scale-110">
+                    <ArrowRight className="size-5" />
+                  </span>
+                </button>
+              </CardContent>
+            </Card>
+          )}
 
-          {/* Weekly XP */}
           <Card>
             <CardHeader className="flex-row items-center justify-between">
               <CardTitle>This week&apos;s XP</CardTitle>
-              <span className="text-sm font-bold text-gradient">
-                {WEEKLY_XP.reduce((a, b) => a + b.xp, 0)} XP
-              </span>
+              <span className="text-sm font-bold text-gradient">{totalWeeklyXp} XP</span>
             </CardHeader>
             <CardContent>
-              <BarChart data={WEEKLY_XP.map((d) => ({ label: d.day, value: d.xp }))} />
+              <BarChart data={weeklyXp} />
             </CardContent>
           </Card>
         </div>
 
-        {/* Side column */}
         <div className="space-y-5">
           <DailyMissions />
           <Card>
@@ -130,7 +141,7 @@ export default function DashboardPage() {
               </Link>
             </CardHeader>
             <CardContent>
-              <LeaderboardList players={leaderboard} limit={5} />
+              <LeaderboardList entries={leaderboard?.entries ?? []} limit={5} />
             </CardContent>
           </Card>
         </div>

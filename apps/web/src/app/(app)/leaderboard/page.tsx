@@ -4,40 +4,24 @@ import { AnimatePresence, motion } from 'framer-motion';
 import * as React from 'react';
 
 import { LeaderboardList } from '@/components/leaderboard-list';
+import { useLeaderboard } from '@/shared/api/hooks/use-stats';
 import { Card, CardContent, CardHeader, CardTitle } from '@/shared/ui/card';
 import { cn, formatNumber } from '@/shared/lib/utils';
-import { useGameStore } from '@/store/use-game-store';
 
-const TABS = ['Global', 'Country', 'University'] as const;
+const TABS = ['alltime', 'weekly'] as const;
 type Tab = (typeof TABS)[number];
 
 const TAB_LABELS: Record<Tab, string> = {
-  Global:     '🌍 Global',
-  Country:    '🏳️ Country',
-  University: '🎓 University',
+  alltime: '🌍 Global',
+  weekly: '📅 This week',
 };
 
 export default function LeaderboardPage() {
-  const leaderboard = useGameStore((s) => s.leaderboard);
-  const [tab, setTab] = React.useState<Tab>('Global');
+  const [tab, setTab] = React.useState<Tab>('alltime');
+  const { data, isLoading } = useLeaderboard(tab);
 
-  const user = leaderboard.find((p) => p.isUser);
-
-  const filtered = React.useMemo(() => {
-    if (!user) return leaderboard;
-    if (tab === 'Country')    return leaderboard.filter((p) => p.country    === user.country);
-    if (tab === 'University') return leaderboard.filter((p) => p.university === user.university);
-    return leaderboard;
-  }, [leaderboard, tab, user]);
-
-  const userRank   = filtered.findIndex((p) => p.isUser);
-  const totalCount = filtered.length;
-
-  const filterLabel = tab === 'Country'
-    ? user?.country
-    : tab === 'University'
-    ? user?.university
-    : undefined;
+  const entries = data?.entries ?? [];
+  const myEntry = entries.find((e) => e.isCurrentUser);
 
   return (
     <div className="space-y-6">
@@ -58,38 +42,23 @@ export default function LeaderboardPage() {
         </div>
       </div>
 
-      {/* Your rank — updates with filter */}
-      {user && userRank !== -1 && (
+      {data?.me.rank && (
         <AnimatePresence mode="wait">
-          <motion.div
-            key={tab}
-            initial={{ opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -8 }}
-            transition={{ duration: 0.2 }}
-          >
+          <motion.div key={tab} initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }} transition={{ duration: 0.2 }}>
             <Card className="overflow-hidden bg-gradient-to-r from-primary/15 to-secondary/15">
               <CardContent className="flex items-center gap-3 p-4 sm:gap-4 sm:p-5">
                 <span className="grid size-11 place-items-center rounded-2xl bg-card text-xl sm:size-14 sm:text-2xl">
-                  {user.avatar}
+                  {myEntry?.avatar ?? '🚀'}
                 </span>
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-muted-foreground">
-                    Your rank
-                    {filterLabel && (
-                      <span className="ml-1.5 rounded-full bg-primary/15 px-2 py-0.5 text-xs font-semibold text-primary">
-                        {filterLabel}
-                      </span>
-                    )}
-                  </p>
+                <div className="min-w-0 flex-1">
+                  <p className="text-sm text-muted-foreground">Your rank</p>
                   <p className="text-2xl font-black">
-                    #{userRank + 1}{' '}
-                    <span className="text-base font-semibold text-muted-foreground">of {totalCount}</span>
+                    #{data.me.rank} <span className="text-base font-semibold text-muted-foreground">of {entries.length}</span>
                   </p>
                 </div>
                 <div className="text-right">
-                  <p className="text-2xl font-black text-gradient">{formatNumber(user.xp)}</p>
-                  <p className="text-xs text-muted-foreground">weekly XP</p>
+                  <p className="text-2xl font-black text-gradient">{formatNumber(data.me.xp)}</p>
+                  <p className="text-xs text-muted-foreground">XP</p>
                 </div>
               </CardContent>
             </Card>
@@ -97,7 +66,6 @@ export default function LeaderboardPage() {
         </AnimatePresence>
       )}
 
-      {/* Tabs */}
       <div className="inline-flex rounded-xl border border-border bg-card p-1">
         {TABS.map((t) => (
           <button
@@ -122,25 +90,19 @@ export default function LeaderboardPage() {
 
       <Card>
         <CardHeader className="flex-row items-center justify-between">
-          <CardTitle>
-            {tab === 'Global' && 'Global ranking · this week'}
-            {tab === 'Country' && `${user?.flag ?? ''} ${user?.country ?? ''} · this week`}
-            {tab === 'University' && `🎓 ${user?.university ?? ''} · this week`}
-          </CardTitle>
-          <span className="text-xs text-muted-foreground">{totalCount} students</span>
+          <CardTitle>{tab === 'alltime' ? 'Global ranking' : 'This week’s ranking'}</CardTitle>
+          <span className="text-xs text-muted-foreground">{entries.length} students</span>
         </CardHeader>
         <CardContent>
-          <AnimatePresence mode="wait">
-            <motion.div
-              key={tab}
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              transition={{ duration: 0.15 }}
-            >
-              <LeaderboardList players={filtered} />
-            </motion.div>
-          </AnimatePresence>
+          {isLoading ? (
+            <p className="py-6 text-center text-sm text-muted-foreground">Loading…</p>
+          ) : (
+            <AnimatePresence mode="wait">
+              <motion.div key={tab} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }}>
+                <LeaderboardList entries={entries} />
+              </motion.div>
+            </AnimatePresence>
+          )}
         </CardContent>
       </Card>
     </div>

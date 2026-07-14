@@ -1,23 +1,22 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { RotateCcw } from 'lucide-react';
+import { LogOut } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { NAV } from '@/lib/nav';
 import { useTranslations } from '@/i18n/use-translations';
+import { useLogout } from '@/shared/api/hooks/use-auth';
 import { cn } from '@/shared/lib/utils';
-import { useGameStore } from '@/store/use-game-store';
-import { useToastStore } from '@/store/use-toast-store';
 
 export function AppSidebar() {
   const { t } = useTranslations();
   const pathname = usePathname();
-  const resetDemo = useGameStore((s) => s.resetDemo);
-  const toast = useToastStore((s) => s.toast);
+  const router = useRouter();
+  const logout = useLogout();
 
   return (
     <aside className="fixed inset-y-0 left-0 z-40 hidden w-64 flex-col border-r border-border bg-card/40 px-4 py-5 lg:flex">
@@ -59,18 +58,11 @@ export function AppSidebar() {
         <LanguageSwitcher />
         <ThemeToggle placement="top-start" />
         <button
-          onClick={() => {
-            resetDemo();
-            toast({
-              icon: '↺',
-              title: t('account.demoResetTitle'),
-              description: t('account.demoResetDesc'),
-            });
-          }}
-          className="flex flex-1 items-center gap-2 rounded-xl px-3 py-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+          onClick={() => logout.mutate(undefined, { onSuccess: () => router.push('/login') })}
+          className="flex flex-1 items-center gap-2 rounded-xl px-3 py-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
         >
-          <RotateCcw className="size-4" />
-          {t('common.resetDemo')}
+          <LogOut className="size-4" />
+          Log out
         </button>
       </div>
     </aside>

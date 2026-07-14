@@ -6,20 +6,14 @@ import { PrismaService } from '../../../../shared/infrastructure/prisma/prisma.s
 export class GetLessonQuizzesUseCase {
   constructor(private readonly prisma: PrismaService) {}
 
-  async execute(lessonId: string) {
-    const quizzes = await this.prisma.quizTemplate.findMany({
+  execute(lessonId: string) {
+    return this.prisma.quizTemplate.findMany({
       where: { lessonId, deletedAt: null },
       include: {
         questions: {
-          include: { options: { select: { id: true, text: true, order: true } } },
+          include: { options: { select: { id: true, text: true, order: true, isCorrect: true } } },
         },
       },
     });
-
-    // Never expose `isCorrect` / `correctAnswer` before an attempt is graded.
-    return quizzes.map((quiz) => ({
-      ...quiz,
-      questions: quiz.questions.map(({ correctAnswer: _correctAnswer, ...question }) => question),
-    }));
   }
 }

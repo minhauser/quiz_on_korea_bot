@@ -7,9 +7,9 @@ import {
   CornerDownLeft,
   Globe,
   History,
+  LogOut,
   Monitor,
   Moon,
-  RotateCcw,
   Search,
   Sun,
 } from 'lucide-react';
@@ -20,11 +20,13 @@ import * as React from 'react';
 import { LOCALE_META, LOCALES, type Locale } from '@/i18n/config';
 import type { TranslationKey } from '@/i18n/dictionaries';
 import { useTranslations } from '@/i18n/use-translations';
-import { ACHIEVEMENTS, LESSONS } from '@/lib/mock-data';
 import { NAV } from '@/lib/nav';
 import { buildHaystack, rankSearchItems, type SearchGroup } from '@/lib/search';
+import { useAchievements } from '@/shared/api/hooks/use-achievements';
+import { useLogout } from '@/shared/api/hooks/use-auth';
+import { useLessons } from '@/shared/api/hooks/use-lessons';
 import { cn } from '@/shared/lib/utils';
-import { useGameStore } from '@/store/use-game-store';
+import { useLessonPlayerStore } from '@/store/use-lesson-player-store';
 import { useLocaleStore } from '@/store/use-locale-store';
 import { useToastStore } from '@/store/use-toast-store';
 import { useUiStore } from '@/store/use-ui-store';
@@ -79,11 +81,12 @@ export function CommandPalette() {
 
   const router = useRouter();
   const { setTheme } = useTheme();
-  const setActiveLesson = useGameStore((s) => s.setActiveLesson);
-  const isUnlocked = useGameStore((s) => s.isUnlocked);
-  const resetDemo = useGameStore((s) => s.resetDemo);
+  const { data: lessons } = useLessons();
+  const { data: achievementsList } = useAchievements();
+  const setActiveLesson = useLessonPlayerStore((s) => s.setActiveLesson);
   const setLocale = useLocaleStore((s) => s.setLocale);
   const toast = useToastStore((s) => s.toast);
+  const logout = useLogout();
   const shortcut = useShortcutLabel();
 
   const [query, setQuery] = React.useState('');
@@ -133,7 +136,8 @@ export function CommandPalette() {
   const openLesson = React.useCallback(
     (lessonId: string) => {
       router.push('/learn');
-      if (isUnlocked(lessonId)) {
+      const lesson = lessons?.find((l) => l.id === lessonId);
+      if (lesson?.unlocked) {
         setActiveLesson(lessonId);
       } else {
         toast({
@@ -143,7 +147,7 @@ export function CommandPalette() {
         });
       }
     },
-    [router, isUnlocked, setActiveLesson, toast, t],
+    [router, lessons, setActiveLesson, toast, t],
   );
 
   const commands = React.useMemo<Command[]>(() => {
@@ -156,43 +160,22 @@ export function CommandPalette() {
       action: () => router.push(n.href),
     }));
 
-    const lessons: Command[] = LESSONS.map((l) => ({
+    const lessonCommands: Command[] = (lessons ?? []).map((l) => ({
       id: `lesson-${l.id}`,
       group: 'lessons',
       label: l.title,
-      hint: l.world,
-      haystack: buildHaystack([l.title, l.scenario, l.world, l.chapter, l.difficulty, 'lesson']),
-      node: <span className="text-base leading-none">{l.icon}</span>,
+      hint: l.category.parent?.name ?? l.category.name,
+      haystack: buildHaystack([l.title, l.description, l.category.name, l.difficulty, 'lesson']),
+      node: <span className="text-base leading-none">📘</span>,
       action: () => openLesson(l.id),
     }));
 
-    const vocabulary: Command[] = LESSONS.flatMap((lesson) =>
-      lesson.vocab.map((v) => ({
-        id: `vocab-${lesson.id}-${v.word}`,
-        group: 'vocabulary' as const,
-        label: v.word,
-        hint: t('search.vocabHint', { translation: v.translation, lesson: lesson.title }),
-        haystack: buildHaystack([
-          v.word,
-          v.romanization,
-          v.translation,
-          v.example,
-          v.exampleTranslation,
-          lesson.title,
-          lesson.world,
-          'vocabulary vocab word',
-        ]),
-        node: <span className="text-sm font-bold">가</span>,
-        action: () => openLesson(lesson.id),
-      })),
-    );
-
-    const achievements: Command[] = ACHIEVEMENTS.map((a) => ({
+    const achievements: Command[] = (achievementsList ?? []).map((a) => ({
       id: `achievement-${a.id}`,
       group: 'achievements',
       label: a.title,
       hint: a.description,
-      haystack: buildHaystack([a.title, a.description, a.rarity, 'achievement badge']),
+      haystack: buildHaystack([a.title, a.description, 'achievement badge']),
       node: <Award className="size-4" />,
       action: () => router.push('/achievements'),
     }));
@@ -244,24 +227,17 @@ export function CommandPalette() {
         action: () => setLocale(code as Locale),
       })),
       {
-        id: 'action-reset',
+        id: 'action-logout',
         group: 'actions',
-        label: t('search.action.reset'),
-        haystack: buildHaystack([t('search.action.reset'), 'reset clear restart progress demo']),
-        node: <RotateCcw className="size-4" />,
-        action: () => {
-          resetDemo();
-          toast({
-            icon: '↺',
-            title: t('account.demoResetTitle'),
-            description: t('account.demoResetDesc'),
-          });
-        },
+        label: t('account.logOut'),
+        haystack: buildHaystack([t('account.logOut'), 'log out sign out logout']),
+        node: <LogOut className="size-4" />,
+        action: () => logout.mutate(undefined, { onSuccess: () => router.push('/login') }),
       },
     ];
 
-    return [...pages, ...lessons, ...vocabulary, ...achievements, ...actions];
-  }, [router, openLesson, setTheme, setLocale, resetDemo, toast, t]);
+    return [...pages, ...lessonCommands, ...achievements, ...actions];
+  }, [router, lessons, achievementsList, openLesson, setTheme, setLocale, logout, t]);
 
   const recentCommands = React.useMemo<Command[]>(
     () =>

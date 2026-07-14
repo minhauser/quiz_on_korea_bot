@@ -1,18 +1,18 @@
 'use client';
 
 import { AnimatePresence, motion } from 'framer-motion';
-import { RotateCcw, X } from 'lucide-react';
+import { LogOut, X } from 'lucide-react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import * as React from 'react';
 
 import { LanguageSwitcher } from '@/components/language-switcher';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { useTranslations } from '@/i18n/use-translations';
-import { NAV, NAV_SECTIONS } from '@/lib/nav';
+import { NAV_SECTIONS } from '@/lib/nav';
+import { useLogout } from '@/shared/api/hooks/use-auth';
+import { useMyStats } from '@/shared/api/hooks/use-stats';
 import { cn, levelFromXp } from '@/shared/lib/utils';
-import { useGameStore } from '@/store/use-game-store';
-import { useToastStore } from '@/store/use-toast-store';
 
 interface MobileDrawerProps {
   open: boolean;
@@ -22,9 +22,10 @@ interface MobileDrawerProps {
 export function MobileDrawer({ open, onClose }: MobileDrawerProps) {
   const { t } = useTranslations();
   const pathname = usePathname();
-  const { totalXp, streak, coins, resetDemo } = useGameStore();
-  const toast = useToastStore((s) => s.toast);
-  const info = levelFromXp(totalXp);
+  const router = useRouter();
+  const { data: stats } = useMyStats();
+  const logout = useLogout();
+  const info = levelFromXp(stats?.profile.xp ?? 0);
 
   // close on route change
   const prevPath = React.useRef(pathname);
@@ -94,7 +95,9 @@ export function MobileDrawer({ open, onClose }: MobileDrawerProps) {
               </span>
               <div className="min-w-0">
                 <p className="text-sm font-bold">{info.rank}</p>
-                <p className="text-xs text-muted-foreground">{totalXp.toLocaleString()} XP · 🔥 {streak}</p>
+                <p className="text-xs text-muted-foreground">
+                  {(stats?.profile.xp ?? 0).toLocaleString()} XP · 🔥 {stats?.profile.streak ?? 0}
+                </p>
               </div>
               <span className="ml-auto text-lg">🚀</span>
             </div>
@@ -141,18 +144,13 @@ export function MobileDrawer({ open, onClose }: MobileDrawerProps) {
               <ThemeToggle placement="top-start" />
               <button
                 onClick={() => {
-                  resetDemo();
-                  toast({
-                    icon: '↺',
-                    title: t('account.demoResetTitle'),
-                    description: t('account.demoResetDesc'),
-                  });
                   onClose();
+                  logout.mutate(undefined, { onSuccess: () => router.push('/login') });
                 }}
-                className="flex flex-1 items-center gap-2 rounded-xl px-3 py-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-accent hover:text-foreground"
+                className="flex flex-1 items-center gap-2 rounded-xl px-3 py-2.5 text-xs font-medium text-muted-foreground transition-colors hover:bg-destructive/10 hover:text-destructive"
               >
-                <RotateCcw className="size-4" />
-                {t('common.resetDemo')}
+                <LogOut className="size-4" />
+                Log out
               </button>
             </div>
           </motion.aside>

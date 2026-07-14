@@ -3,24 +3,31 @@
 import { motion } from 'framer-motion';
 import { Check, Lock, Play, Star } from 'lucide-react';
 
-import { type Lesson } from '@/lib/mock-data';
+import { lessonAccent, lessonIcon } from '@/lib/lesson-presentation';
+import type { LessonSummary } from '@/shared/api/hooks/use-lessons';
 import { Badge } from '@/shared/ui/badge';
 import { Button } from '@/shared/ui/button';
 import { cn } from '@/shared/lib/utils';
-import { useGameStore } from '@/store/use-game-store';
+import { useLessonPlayerStore } from '@/store/use-lesson-player-store';
 
 const diffVariant = {
-  Beginner: 'success',
-  Intermediate: 'warning',
-  Advanced: 'destructive',
+  BEGINNER: 'success',
+  INTERMEDIATE: 'warning',
+  ADVANCED: 'destructive',
 } as const;
 
-export function LessonCard({ lesson, index = 0 }: { lesson: Lesson; index?: number }) {
-  const unlocked = useGameStore((s) => s.isUnlocked(lesson.id));
-  const completed = useGameStore((s) => s.completedLessons.includes(lesson.id));
-  const best = useGameStore((s) => s.lessonResults[lesson.id]?.bestAccuracy ?? 0);
-  const setActiveLesson = useGameStore((s) => s.setActiveLesson);
+const diffLabel = {
+  BEGINNER: 'Beginner',
+  INTERMEDIATE: 'Intermediate',
+  ADVANCED: 'Advanced',
+} as const;
 
+export function LessonCard({ lesson, index = 0 }: { lesson: LessonSummary; index?: number }) {
+  const setActiveLesson = useLessonPlayerStore((s) => s.setActiveLesson);
+
+  const unlocked = lesson.unlocked;
+  const completed = !!lesson.progress?.completedAt;
+  const best = lesson.progress?.score ?? 0;
   const stars = completed ? (best === 100 ? 3 : best >= 80 ? 2 : 1) : 0;
 
   return (
@@ -38,19 +45,19 @@ export function LessonCard({ lesson, index = 0 }: { lesson: Lesson; index?: numb
         <div
           className={cn(
             'grid size-14 place-items-center rounded-2xl bg-gradient-to-br text-3xl shadow-lg',
-            lesson.accent,
+            lessonAccent(lesson.id),
           )}
         >
-          {unlocked ? lesson.icon : <Lock className="size-6 text-white" />}
+          {unlocked ? lessonIcon(lesson.id) : <Lock className="size-6 text-white" />}
         </div>
-        <Badge variant={diffVariant[lesson.difficulty]}>{lesson.difficulty}</Badge>
+        <Badge variant={diffVariant[lesson.difficulty]}>{diffLabel[lesson.difficulty]}</Badge>
       </div>
 
       <h3 className="mt-4 text-lg font-bold">{lesson.title}</h3>
-      <p className="text-sm text-muted-foreground">{lesson.scenario}</p>
+      <p className="text-sm text-muted-foreground">{lesson.description}</p>
 
       <div className="mt-3 flex items-center gap-3 text-xs text-muted-foreground">
-        <span>📚 {lesson.vocab.length} words</span>
+        <span>📚 {lesson.vocabularyCount} words</span>
         <span>⚡ {lesson.xpReward} XP</span>
       </div>
 

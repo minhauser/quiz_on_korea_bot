@@ -10,9 +10,10 @@ import { MobileDrawer } from '@/components/mobile-drawer';
 import { SearchTrigger } from '@/components/search-trigger';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { useTranslations } from '@/i18n/use-translations';
+import { useMarkNotificationRead, useNotifications } from '@/shared/api/hooks/use-notifications';
+import { useMyStats } from '@/shared/api/hooks/use-stats';
 import { CountUp } from '@/shared/ui/count-up';
 import { cn, levelFromXp } from '@/shared/lib/utils';
-import { useGameStore } from '@/store/use-game-store';
 
 function Stat({ icon, value, className }: { icon: React.ReactNode; value: number; className?: string }) {
   return (
@@ -30,15 +31,20 @@ function Stat({ icon, value, className }: { icon: React.ReactNode; value: number
 
 export function TopBar() {
   const { t } = useTranslations();
-  const { totalXp, coins, gems, streak, notifications, markAllRead } = useGameStore();
+  const { data: stats } = useMyStats();
+  const { data: notifications } = useNotifications();
+  const markRead = useMarkNotificationRead();
   const [notifOpen, setNotifOpen] = React.useState(false);
   const [drawerOpen, setDrawerOpen] = React.useState(false);
-  const info = levelFromXp(totalXp);
-  const unread = notifications.filter((n) => !n.read).length;
+
+  const info = levelFromXp(stats?.profile.xp ?? 0);
+  const unread = notifications?.unreadCount ?? 0;
 
   const toggleNotif = () => {
     setNotifOpen((o) => {
-      if (!o) markAllRead();
+      if (!o) {
+        notifications?.items.filter((n) => !n.read).forEach((n) => markRead.mutate(n.id));
+      }
       return !o;
     });
   };
@@ -48,7 +54,6 @@ export function TopBar() {
       <MobileDrawer open={drawerOpen} onClose={() => setDrawerOpen(false)} />
 
       <header className="glass sticky top-0 z-30 flex h-16 items-center gap-2 border-b border-border px-3 sm:gap-3 sm:px-4 lg:px-6">
-        {/* hamburger — mobile only */}
         <button
           onClick={() => setDrawerOpen(true)}
           aria-label="Open menu"
@@ -65,9 +70,9 @@ export function TopBar() {
         <div className="ml-auto flex items-center gap-1.5 sm:gap-2.5">
           <SearchTrigger className="hidden w-44 md:flex lg:w-56" />
           <SearchTrigger compact className="md:hidden" />
-          <Stat icon={<Flame className="size-4 text-warning" />} value={streak} className="text-warning" />
-          <Stat icon={<Gem className="size-4 text-secondary" />} value={gems} className="hidden text-secondary md:flex" />
-          <Stat icon={<Coins className="size-4 text-amber-400" />} value={coins} className="text-amber-400" />
+          <Stat icon={<Flame className="size-4 text-warning" />} value={stats?.profile.streak ?? 0} className="text-warning" />
+          <Stat icon={<Gem className="size-4 text-secondary" />} value={stats?.profile.diamonds ?? 0} className="hidden text-secondary md:flex" />
+          <Stat icon={<Coins className="size-4 text-amber-400" />} value={stats?.profile.coins ?? 0} className="text-amber-400" />
 
           <div className="hidden items-center gap-2 rounded-full bg-gradient-to-r from-primary/20 to-secondary/20 px-3 py-1.5 md:flex">
             <span className="grid size-6 place-items-center rounded-full bg-gradient-to-br from-primary to-secondary text-[11px] font-black text-white">
@@ -105,12 +110,14 @@ export function TopBar() {
                   >
                     <div className="border-b border-border px-4 py-3 text-sm font-semibold">{t('topBar.notifications')}</div>
                     <div className="max-h-96 overflow-y-auto">
-                      {notifications.length === 0 && (
+                      {(!notifications || notifications.items.length === 0) && (
                         <p className="px-4 py-8 text-center text-sm text-muted-foreground">{t('topBar.allCaughtUp')}</p>
                       )}
-                      {notifications.map((n) => (
+                      {notifications?.items.map((n) => (
                         <div key={n.id} className="flex gap-3 border-b border-border/60 px-4 py-3 last:border-0">
-                          <span className="text-xl leading-none">{n.icon}</span>
+                          <span className="text-xl leading-none">
+                            {n.type === 'ACHIEVEMENT_UNLOCKED' ? '🏆' : n.type === 'MISSION_REMINDER' ? '🎯' : '✨'}
+                          </span>
                           <div className="min-w-0">
                             <p className="text-sm font-medium">{n.title}</p>
                             <p className="text-xs text-muted-foreground">{n.body}</p>

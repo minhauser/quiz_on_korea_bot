@@ -16,7 +16,7 @@ export class QuizzesController {
   ) {}
 
   @Get(':lessonId')
-  @ApiOperation({ summary: 'Get the quiz(zes) for a lesson (answers withheld)' })
+  @ApiOperation({ summary: 'Get the quiz(zes) for a lesson, including correct answers (client reveals per-question feedback immediately)' })
   list(@Param('lessonId') lessonId: string) {
     return this.getLessonQuizzes.execute(lessonId);
   }

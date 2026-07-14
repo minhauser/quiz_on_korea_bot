@@ -3,7 +3,7 @@
 import { motion } from 'framer-motion';
 
 import { useTranslations } from '@/i18n/use-translations';
-import { useGameStore } from '@/store/use-game-store';
+import { useAuthStore } from '@/store/use-auth-store';
 import { useLocaleStore } from '@/store/use-locale-store';
 
 function Splash() {
@@ -31,9 +31,9 @@ function Splash() {
 }
 
 export function HydrationGate({ children }: { children: React.ReactNode }) {
-  const gameReady = useGameStore((s) => s.hasHydrated);
+  const authReady = useAuthStore((s) => s.hasHydrated);
   const localeReady = useLocaleStore((s) => s.hasHydrated);
 
-  if (!gameReady || !localeReady) return <Splash />;
+  if (!authReady || !localeReady) return <Splash />;
   return <>{children}</>;
 }
