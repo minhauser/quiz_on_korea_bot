@@ -1,6 +1,19 @@
-import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Post,
+  Req,
+  Res,
+  UseGuards,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { AuthGuard } from '@nestjs/passport';
 import { ApiBearerAuth, ApiOkResponse, ApiOperation, ApiTags } from '@nestjs/swagger';
-import { type Request } from 'express';
+import { type AuthProvider } from '@prisma/client';
+import { type Request, type Response } from 'express';
 
 import {
   type AuthenticatedUser,
@@ -9,8 +22,10 @@ import {
 import { Public } from '../../../../shared/presentation/decorators/public.decorator';
 import { LoginUseCase } from '../../application/use-cases/login.use-case';
 import { LogoutUseCase } from '../../application/use-cases/logout.use-case';
+import { OAuthLoginUseCase } from '../../application/use-cases/oauth-login.use-case';
 import { RefreshTokenUseCase } from '../../application/use-cases/refresh-token.use-case';
 import { RegisterUseCase } from '../../application/use-cases/register.use-case';
+import { type OAuthProfile } from '../../infrastructure/strategies/google.strategy';
 import { MeResponseDto, RegisterResponseDto, TokensResponseDto } from '../dto/auth-response.dto';
 import { LoginDto } from '../dto/login.dto';
 import { RefreshDto } from '../dto/refresh.dto';
@@ -24,6 +39,8 @@ export class AuthController {
     private readonly loginUseCase: LoginUseCase,
     private readonly refreshUseCase: RefreshTokenUseCase,
     private readonly logoutUseCase: LogoutUseCase,
+    private readonly oauthLoginUseCase: OAuthLoginUseCase,
+    private readonly config: ConfigService,
   ) {}
 
   @Public()
@@ -75,5 +92,63 @@ export class AuthController {
   @ApiOkResponse({ type: MeResponseDto })
   me(@CurrentUser() user: AuthenticatedUser): MeResponseDto {
     return { sub: user.sub, email: user.email, role: user.role };
+  }
+
+  @Public()
+  @Get('google')
+  @UseGuards(AuthGuard('google'))
+  @ApiOperation({ summary: 'Redirect to Google for OAuth login' })
+  googleLogin(): void {
+    // Passport's AuthGuard performs the redirect; this body never runs.
+  }
+
+  @Public()
+  @Get('callback/google')
+  @UseGuards(AuthGuard('google'))
+  @ApiOperation({ summary: 'Google OAuth callback — issues tokens and redirects to the frontend' })
+  async googleCallback(@Req() req: Request, @Res() res: Response): Promise<void> {
+    await this.completeOAuthLogin('GOOGLE', req, res);
+  }
+
+  @Public()
+  @Get('kakao')
+  @UseGuards(AuthGuard('kakao'))
+  @ApiOperation({ summary: 'Redirect to Kakao for OAuth login' })
+  kakaoLogin(): void {
+    // Passport's AuthGuard performs the redirect; this body never runs.
+  }
+
+  @Public()
+  @Get('callback/kakao')
+  @UseGuards(AuthGuard('kakao'))
+  @ApiOperation({ summary: 'Kakao OAuth callback — issues tokens and redirects to the frontend' })
+  async kakaoCallback(@Req() req: Request, @Res() res: Response): Promise<void> {
+    await this.completeOAuthLogin('KAKAO', req, res);
+  }
+
+  private async completeOAuthLogin(
+    provider: AuthProvider,
+    req: Request,
+    res: Response,
+  ): Promise<void> {
+    const profile = req.user as OAuthProfile;
+    const frontendUrl = this.config.get<string>('app.corsOrigin') ?? 'http://localhost:3000';
+    try {
+      const tokens = await this.oauthLoginUseCase.execute({
+        provider,
+        email: profile.email,
+        nickname: profile.nickname,
+        avatar: profile.avatar,
+        userAgent: req.headers['user-agent'] ?? null,
+        ip: req.ip ?? null,
+      });
+      const query = new URLSearchParams({
+        accessToken: tokens.accessToken,
+        refreshToken: tokens.refreshToken,
+      });
+      res.redirect(`${frontendUrl}/oauth-callback?${query.toString()}`);
+    } catch {
+      res.redirect(`${frontendUrl}/login?error=oauth_failed`);
+    }
   }
 }

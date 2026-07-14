@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { type Prisma } from '@prisma/client';
 
 import { RedisService } from '../redis/redis.service';
+
 import { LEADERBOARD_ALLTIME_KEY, XpRewardService } from './xp-reward.service';
 
 type Tx = Prisma.TransactionClient;

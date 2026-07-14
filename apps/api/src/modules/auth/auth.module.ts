@@ -7,6 +7,7 @@ import { PASSWORD_HASHER } from './application/ports/password-hasher.port';
 import { TOKEN_SERVICE } from './application/ports/token-service.port';
 import { LoginUseCase } from './application/use-cases/login.use-case';
 import { LogoutUseCase } from './application/use-cases/logout.use-case';
+import { OAuthLoginUseCase } from './application/use-cases/oauth-login.use-case';
 import { RefreshTokenUseCase } from './application/use-cases/refresh-token.use-case';
 import { RegisterUseCase } from './application/use-cases/register.use-case';
 import { REFRESH_TOKEN_REPOSITORY } from './domain/repositories/refresh-token.repository';
@@ -15,7 +16,9 @@ import { PrismaRefreshTokenRepository } from './infrastructure/persistence/repos
 import { PrismaUserRepository } from './infrastructure/persistence/repositories/prisma-user.repository';
 import { Argon2PasswordHasher } from './infrastructure/services/argon2-password-hasher';
 import { JwtTokenService } from './infrastructure/services/jwt-token.service';
+import { GoogleStrategy } from './infrastructure/strategies/google.strategy';
 import { JwtStrategy } from './infrastructure/strategies/jwt.strategy';
+import { KakaoStrategy } from './infrastructure/strategies/kakao.strategy';
 import { AuthController } from './presentation/controllers/auth.controller';
 
 @Module({
@@ -26,7 +29,10 @@ import { AuthController } from './presentation/controllers/auth.controller';
     LoginUseCase,
     RefreshTokenUseCase,
     LogoutUseCase,
+    OAuthLoginUseCase,
     JwtStrategy,
+    GoogleStrategy,
+    KakaoStrategy,
     { provide: PASSWORD_HASHER, useClass: Argon2PasswordHasher },
     { provide: TOKEN_SERVICE, useClass: JwtTokenService },
     { provide: USER_REPOSITORY, useClass: PrismaUserRepository },

@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 
 import { PrismaService } from '../../../../shared/infrastructure/prisma/prisma.service';
+
 import { RARITY_COST } from './list-rewards.use-case';
 
 @Injectable()
