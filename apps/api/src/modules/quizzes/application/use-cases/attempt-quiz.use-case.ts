@@ -1,7 +1,11 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 
-import { PrismaService } from '../../../../shared/infrastructure/prisma/prisma.service';
+import { AchievementCheckerService } from '../../../../shared/infrastructure/gameplay/achievement-checker.service';
+import { MissionProgressService } from '../../../../shared/infrastructure/gameplay/mission-progress.service';
 import { XpRewardService } from '../../../../shared/infrastructure/gameplay/xp-reward.service';
+import { PrismaService } from '../../../../shared/infrastructure/prisma/prisma.service';
+
+const HIGH_SCORE_THRESHOLD = 90;
 
 export interface QuizAnswerInput {
   questionId: string;
@@ -21,6 +25,8 @@ export class AttemptQuizUseCase {
   constructor(
     private readonly prisma: PrismaService,
     private readonly xpReward: XpRewardService,
+    private readonly missionProgress: MissionProgressService,
+    private readonly achievementChecker: AchievementCheckerService,
   ) {}
 
   async execute(command: AttemptQuizCommand) {
@@ -62,8 +68,8 @@ export class AttemptQuizUseCase {
     const xpEarned = results.reduce((sum, r) => sum + (r.correct ? r.xpReward : 0), 0);
     const coinsEarned = Math.floor(xpEarned / 2);
 
-    const attempt = await this.prisma.$transaction(async (tx) => {
-      const created = await tx.quizAttempt.create({
+    return this.prisma.$transaction(async (tx) => {
+      const attempt = await tx.quizAttempt.create({
         data: {
           userId: command.userId,
           quizId: command.quizId,
@@ -75,17 +81,38 @@ export class AttemptQuizUseCase {
         },
       });
 
+      let completedMissions: Awaited<ReturnType<MissionProgressService['touch']>> = [];
+
       if (xpEarned > 0) {
-        await this.xpReward.award(tx, command.userId, {
+        const awardResult = await this.xpReward.award(tx, command.userId, {
           xp: xpEarned,
           coins: coinsEarned,
           quizzesCompleted: 1,
         });
+
+        if (awardResult.isFirstActionToday) {
+          completedMissions = await this.missionProgress.touch(tx, command.userId, 'streak_active', 1);
+        }
       }
 
-      return created;
-    });
+      if (accuracy >= HIGH_SCORE_THRESHOLD) {
+        const highScoreMissions = await this.missionProgress.touch(tx, command.userId, 'quiz_high_score', 1);
+        completedMissions = [...completedMissions, ...highScoreMissions];
+      }
 
-    return { attempt, accuracy, correctCount, totalQuestions, xpEarned, coinsEarned, results };
+      const unlockedAchievements = await this.achievementChecker.checkAndUnlock(tx, command.userId);
+
+      return {
+        attempt,
+        accuracy,
+        correctCount,
+        totalQuestions,
+        xpEarned,
+        coinsEarned,
+        results,
+        completedMissions,
+        unlockedAchievements,
+      };
+    });
   }
 }

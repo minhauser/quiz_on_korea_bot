@@ -179,10 +179,10 @@ const LESSONS: LessonSeed[] = [
 ];
 
 const DAILY_MISSIONS = [
-  { id: 'm1', title: 'Learn 15 new words', goal: 15, reward: 100 },
-  { id: 'm2', title: 'Complete 1 lesson', goal: 1, reward: 80 },
-  { id: 'm3', title: 'Score 90%+ on a quiz', goal: 1, reward: 120 },
-  { id: 'm4', title: 'Keep your streak alive', goal: 1, reward: 50 },
+  { id: 'm1', title: 'Learn 15 new words', goal: 15, reward: 100, metric: 'words_learned' },
+  { id: 'm2', title: 'Complete 1 lesson', goal: 1, reward: 80, metric: 'lessons_completed' },
+  { id: 'm3', title: 'Score 90%+ on a quiz', goal: 1, reward: 120, metric: 'quiz_high_score' },
+  { id: 'm4', title: 'Keep your streak alive', goal: 1, reward: 50, metric: 'streak_active' },
 ];
 
 const ACHIEVEMENTS = [
@@ -326,6 +326,7 @@ async function seedMissions() {
       rewardXp: m.reward,
       rewardCoins: 0,
       period: MissionPeriod.DAILY,
+      metric: m.metric,
     })),
   });
 }

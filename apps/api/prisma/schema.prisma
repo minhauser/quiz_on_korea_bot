@@ -661,6 +661,11 @@ model Mission {
   rewardCoins Int           @default(0) @map("reward_coins")
   difficulty  Difficulty    @default(BEGINNER)
   period      MissionPeriod @default(DAILY)
+  // Drives automatic progress tracking (see MissionProgressService). "manual"
+  // = no automatic trigger; anything else must match a metric emitted by
+  // gameplay use-cases (lessons_completed, words_learned, quiz_high_score,
+  // streak_active).
+  metric      String        @default("manual")
 
   createdAt DateTime  @default(now()) @map("created_at")
   updatedAt DateTime  @updatedAt @map("updated_at")

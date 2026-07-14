@@ -1,10 +1,13 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 
-import { PrismaService } from '../../../../shared/infrastructure/prisma/prisma.service';
+import { AchievementCheckerService } from '../../../../shared/infrastructure/gameplay/achievement-checker.service';
+import { MissionProgressService } from '../../../../shared/infrastructure/gameplay/mission-progress.service';
 import { XpRewardService } from '../../../../shared/infrastructure/gameplay/xp-reward.service';
+import { PrismaService } from '../../../../shared/infrastructure/prisma/prisma.service';
 
 // Days until next review, indexed by mastery level (0–5) after this attempt.
 const REVIEW_INTERVAL_DAYS = [1, 1, 3, 7, 14, 30];
+const MASTERED_LEVEL = 5;
 const XP_PER_CORRECT_REVIEW = 2;
 
 export interface ReviewVocabularyCommand {
@@ -18,6 +21,8 @@ export class ReviewVocabularyUseCase {
   constructor(
     private readonly prisma: PrismaService,
     private readonly xpReward: XpRewardService,
+    private readonly missionProgress: MissionProgressService,
+    private readonly achievementChecker: AchievementCheckerService,
   ) {}
 
   async execute(command: ReviewVocabularyCommand) {
@@ -40,6 +45,7 @@ export class ReviewVocabularyUseCase {
         : Math.max(0, currentMastery - 1);
       const nextReview = addDays(new Date(), REVIEW_INTERVAL_DAYS[masteryLevel] ?? 1);
       const isFirstReview = !existing;
+      const justMastered = masteryLevel === MASTERED_LEVEL && currentMastery < MASTERED_LEVEL;
 
       const progress = await tx.vocabularyProgress.upsert({
         where: { userId_wordId: { userId: command.userId, wordId: command.wordId } },
@@ -63,14 +69,27 @@ export class ReviewVocabularyUseCase {
         },
       });
 
+      let completedMissions: Awaited<ReturnType<MissionProgressService['touch']>> = [];
+      let unlockedAchievements: Awaited<ReturnType<AchievementCheckerService['checkAndUnlock']>> = [];
+
       if (command.correct) {
-        await this.xpReward.award(tx, command.userId, {
+        const awardResult = await this.xpReward.award(tx, command.userId, {
           xp: XP_PER_CORRECT_REVIEW,
           wordsLearned: isFirstReview ? 1 : 0,
+          wordsMastered: justMastered ? 1 : 0,
         });
+
+        completedMissions = await this.missionProgress.touch(tx, command.userId, 'words_learned', 1);
+        if (awardResult.isFirstActionToday) {
+          const streakMissions = await this.missionProgress.touch(tx, command.userId, 'streak_active', 1);
+          completedMissions = [...completedMissions, ...streakMissions];
+        }
+        if (justMastered) {
+          unlockedAchievements = await this.achievementChecker.checkAndUnlock(tx, command.userId);
+        }
       }
 
-      return progress;
+      return { ...progress, completedMissions, unlockedAchievements };
     });
   }
 }

@@ -1,7 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 
-import { PrismaService } from '../../../../shared/infrastructure/prisma/prisma.service';
+import { AchievementCheckerService } from '../../../../shared/infrastructure/gameplay/achievement-checker.service';
+import { MissionProgressService } from '../../../../shared/infrastructure/gameplay/mission-progress.service';
 import { XpRewardService } from '../../../../shared/infrastructure/gameplay/xp-reward.service';
+import { PrismaService } from '../../../../shared/infrastructure/prisma/prisma.service';
 
 export interface CompleteLessonCommand {
   lessonId: string;
@@ -14,6 +16,8 @@ export class CompleteLessonUseCase {
   constructor(
     private readonly prisma: PrismaService,
     private readonly xpReward: XpRewardService,
+    private readonly missionProgress: MissionProgressService,
+    private readonly achievementChecker: AchievementCheckerService,
   ) {}
 
   async execute(command: CompleteLessonCommand) {
@@ -52,17 +56,34 @@ export class CompleteLessonUseCase {
 
       let xpAwarded = 0;
       let coinsAwarded = 0;
+      let completedMissions: Awaited<ReturnType<MissionProgressService['touch']>> = [];
+      let unlockedAchievements: Awaited<ReturnType<AchievementCheckerService['checkAndUnlock']>> = [];
+
       if (isFirstCompletion) {
         xpAwarded = lesson.xpReward;
         coinsAwarded = Math.floor(lesson.xpReward / 2);
-        await this.xpReward.award(tx, command.userId, {
+        const awardResult = await this.xpReward.award(tx, command.userId, {
           xp: xpAwarded,
           coins: coinsAwarded,
           lessonsCompleted: 1,
         });
+
+        completedMissions = await this.missionProgress.touch(tx, command.userId, 'lessons_completed', 1);
+        if (awardResult.isFirstActionToday) {
+          const streakMissions = await this.missionProgress.touch(tx, command.userId, 'streak_active', 1);
+          completedMissions = [...completedMissions, ...streakMissions];
+        }
+        unlockedAchievements = await this.achievementChecker.checkAndUnlock(tx, command.userId);
       }
 
-      return { progress, xpAwarded, coinsAwarded, firstCompletion: isFirstCompletion };
+      return {
+        progress,
+        xpAwarded,
+        coinsAwarded,
+        firstCompletion: isFirstCompletion,
+        completedMissions,
+        unlockedAchievements,
+      };
     });
   }
 }
