@@ -21,3 +21,5 @@ onlyBuiltDependencies:
   - prisma
   - sharp
   - unrs-resolver
+ignoredBuiltDependencies:
+  - '@scarf/scarf'
