@@ -4,6 +4,7 @@ packages:
 allowBuilds:
   '@prisma/client': true
   '@prisma/engines': true
+  '@scarf/scarf': true
   '@swc/core': true
   argon2: true
   esbuild: true
@@ -14,6 +15,7 @@ allowBuilds:
 onlyBuiltDependencies:
   - '@prisma/client'
   - '@prisma/engines'
+  - '@scarf/scarf'
   - '@swc/core'
   - argon2
   - esbuild
@@ -21,5 +23,3 @@ onlyBuiltDependencies:
   - prisma
   - sharp
   - unrs-resolver
-ignoredBuiltDependencies:
-  - '@scarf/scarf'
