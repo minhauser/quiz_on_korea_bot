@@ -3,6 +3,9 @@
   "version": "0.0.0",
   "private": true,
   "license": "UNLICENSED",
+  "engines": {
+    "node": ">=20 <25"
+  },
   "scripts": {
     "dev": "next dev --turbo -p 3000",
     "build": "next build",

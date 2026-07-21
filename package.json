@@ -2,5 +2,9 @@
   "name": "korean-platform",
   "version": "0.0.0",
   "private": true,
-  "license": "UNLICENSED"
+  "license": "UNLICENSED",
+  "engines": {
+    "node": ">=20 <25"
+  },
+  "packageManager": "pnpm@11.11.0"
 }
